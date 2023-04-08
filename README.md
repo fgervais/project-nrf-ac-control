@@ -5,7 +5,7 @@
 ```bash
 mkdir project-nrf-ac-control
 cd project-nrf-ac-control
-docker run --rm -it -u $(id -u):$(id -g) -v $(pwd):/workdir/project nordicplayground/nrfconnect-sdk:v2.1-branch bash
+docker run --rm -it -u $(id -u):$(id -g) -v $(pwd):/workdir/project nordicplayground/nrfconnect-sdk:v2.3-branch bash
 west init -m https://github.com/fgervais/project-nrf-ac-control.git .
 west update
 ```
