@@ -73,7 +73,7 @@ LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 // #define NEC_REPETION_TIME       1760000  // 1760000 / 16 MHz = 110 ms
 // #define  NEC_REPETION_TIME / NEC_TOP_VALUE)
 
-#define PWM_INST_IDX            0
+// #define PWM_INST_IDX            0
 
 // 9 ms high, 4.4 ms low
 const uint16_t NEC_START[] =
@@ -171,12 +171,12 @@ union ext_frame
 
 
 // static nrf_drv_pwm_t            pwm = CONFIG_IR_TX_PWM_INSTANCE;
-static nrfx_pwm_t               pwm = NRFX_PWM_INSTANCE(PWM_INST_IDX);
+// static nrfx_pwm_t               pwm = NRFX_PWM_INSTANCE(PWM_INST_IDX);
 static uint16_t                 seq_pwm_values[MAX_SEQ_SIZE];
-static nrf_pwm_sequence_t       seq;
+// static nrf_pwm_sequence_t       seq;
 // static drv_ir_callback_t        acknowledge_handler;
-static const union frame        *frame;
-static const union ext_frame    *ext_frame;
+// static const union drv_ir_frame        *frame;
+// static const union drv_ir_ext_frame    *ext_frame;
 static bool                     pwm_active;
 static bool                     enabled_flag;  
 
