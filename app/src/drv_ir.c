@@ -38,25 +38,29 @@
  * 
  */
 
-#include <string.h>
-#include "nrf_drv_pwm.h"
-#include "drv_ir.h"
-#include "app_util_platform.h"
-#include "app_debug.h"
+// #include <string.h>
+// #include "nrf_drv_pwm.h"
+// #include "drv_ir.h"
+// #include "autil_platform.h"
+// #include "adebug.h"
 
-#if CONFIG_IR_TX_ENABLED && (CONFIG_IR_PROTOCOL == CONFIG_IR_TX_PROTOCOL_NEC)
+#include <nrfx_pwm.h>
 
-#define NRF_LOG_MODULE_NAME drv_ir_nec
-#define NRF_LOG_LEVEL CONFIG_IR_DRV_LOG_LEVEL
-#include "nrf_log.h"
-NRF_LOG_MODULE_REGISTER();
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 
-// Verify SDK driver configuration.
-STATIC_ASSERT(PWM_ENABLED && PWM0_ENABLED);
 
-#define NEC_COMMAND_BITS        8
-#define NEC_ADDRESS_BITS        8
+// #define NRF_LOG_MODULE_NAME drv_ir_nec
+// #define NRF_LOG_LEVEL CONFIG_IR_DRV_LOG_LEVEL
+// #include "nrf_log.h"
+// NRF_LOG_MODULE_REGISTER();
+
+// #define COMMAND_BITS        8
+// #define NEC_ADDRESS_BITS        8
 #define NEC_GUARD_ZEROS         1
+#define TRAILING_SEQUENCE_BITS  8
+#define FRAME_BITS              28
+#define EXT_FRAME_BITS          32
 
 #define NEC_TOP_VALUE           421      // 38kHz carrier 26.3125 usec for 16MHz PWM_CLK
 #define NEC_SYMBOL_REPEATS      21       // repeat each symbol 21 times - 21*26.3125=552.5625 us
@@ -68,6 +72,9 @@ STATIC_ASSERT(PWM_ENABLED && PWM0_ENABLED);
 #define NEC_REPETION_TIME       1760000  // 1760000 / 16 MHz = 110 ms
 #define NEC_REPETION_PERIODS    (NEC_REPETION_TIME / NEC_TOP_VALUE)
 
+#define PWM_INST_IDX            0
+
+// 9 ms high, 4.4 ms low
 const uint16_t NEC_START[] =
     { NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
       NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
@@ -76,15 +83,21 @@ const uint16_t NEC_START[] =
       NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
       NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL};
 
-const uint16_t NEC_REPEAT[] =
-    { NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
-      NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
-      NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
-      NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
-      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
-      NEC_MARK_SYMBOL};
+const uint16_t TRAILING_SEQUENCE[] =
+    { NEC_MARK_SYMBOL,  NEC_SPACE_SYMBOL,  NEC_MARK_SYMBOL,  NEC_SPACE_SYMBOL, \
+      NEC_SPACE_SYMBOL,  NEC_MARK_SYMBOL,  NEC_SPACE_SYMBOL,  NEC_MARK_SYMBOL};
 
-STATIC_ASSERT(ARRAY_SIZE(NEC_START) >= ARRAY_SIZE(NEC_REPEAT));
+// 19 ms low
+const uint16_t EXT_FRAME_SPACE[] =
+    { NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+      NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL};
 
 const uint16_t NEC_ONE[] =
     { NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL , NEC_SPACE_SYMBOL };
@@ -93,105 +106,160 @@ const uint16_t NEC_ZERO[] =
     { NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL };
 
 #define MAX_SEQ_SIZE            ARRAY_SIZE(NEC_START) + \
-                                ((NEC_COMMAND_BITS + NEC_ADDRESS_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) * 2) + \
+                                (FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
+                                ARRAY_SIZE(TRAILING_SEQUENCE) + \
+                                ARRAY_SIZE(EXT_FRAME_SPACE) + \
+                                (EXT_FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
                                 (NEC_GUARD_ZEROS * ARRAY_SIZE(NEC_ZERO))
 
-static nrf_drv_pwm_t            m_pwm = CONFIG_IR_TX_PWM_INSTANCE;
-static uint16_t                 m_seq_pwm_values[MAX_SEQ_SIZE];
-static nrf_pwm_sequence_t       m_seq;
-static drv_ir_callback_t        m_acknowledge_handler;
-static const sr3_ir_symbol_t    *mp_ir_symbol;
-static bool                     m_pwm_active;
-static bool                     m_enabled_flag;
 
-static void insert_start_symbol(uint16_t **pp_seq)
+union frame
 {
-    memcpy(*pp_seq, NEC_START, sizeof(NEC_START));
-    *pp_seq += ARRAY_SIZE(NEC_START);
+    uint32_t content;
+    struct {
+        uint32_t mode : 3;
+        uint32_t on : 1;
+        uint32_t fan : 2;
+        uint32_t oscillating : 1;
+        uint32_t sleep : 1;
+        uint32_t temperature : 4;
+        uint32_t timer : 8;
+        uint32_t turbo : 1;
+        uint32_t light : 1;
+        uint32_t pine_tree : 1;
+        uint32_t x_fan : 1;
+        uint32_t scavenging : 1;
+        uint32_t : 2;
+        uint32_t set_config : 1;
+    }
+};
+
+union ext_frame
+{
+    uint32_t content;
+    struct {
+        uint32_t swing : 4;
+        uint32_t : 4;
+        uint32_t temp : 4;
+        uint32_t i_feel : 1;
+        uint32_t : 1;
+        uint32_t unknown : 4;
+        uint32_t : 12;
+        uint32_t temperature : 4;
+    }
+};
+
+
+// static nrf_drv_pwm_t            pwm = CONFIG_IR_TX_PWM_INSTANCE;
+static nrfx_pwm_t               pwm = NRFX_PWM_INSTANCE(PWM_INST_IDX);
+static uint16_t                 seq_pwm_values[MAX_SEQ_SIZE];
+static nrf_pwm_sequence_t       seq;
+static drv_ir_callback_t        acknowledge_handler;
+static const union frame        *frame;
+static const union ext_frame    *ext_frame;
+static bool                     pwm_active;
+static bool                     enabled_flag;  
+
+static void insert_start_symbol(uint16_t **seq)
+{
+    memcpy(*seq, NEC_START, sizeof(NEC_START));
+    *seq += ARRAY_SIZE(NEC_START);
 }
 
-static void insert_one_symbol(uint16_t **pp_seq)
+static void insert_trailing_sequence(uint16_t **seq)
 {
-    memcpy(*pp_seq, NEC_ONE, sizeof(NEC_ONE));
-    *pp_seq += ARRAY_SIZE(NEC_ONE);
+    memcpy(*seq, TRAILING_SEQUENCE, sizeof(TRAILING_SEQUENCE));
+    *seq += ARRAY_SIZE(TRAILING_SEQUENCE);
 }
 
-static void insert_zero_symbol(uint16_t **pp_seq)
+static void insert_ext_frame_space(uint16_t **seq)
 {
-    memcpy(*pp_seq, NEC_ZERO, sizeof(NEC_ZERO));
-    *pp_seq += ARRAY_SIZE(NEC_ZERO);
+    memcpy(*seq, EXT_FRAME_SPACE, sizeof(EXT_FRAME_SPACE));
+    *seq += ARRAY_SIZE(EXT_FRAME_SPACE);
 }
 
-static void nec_symbol_encoder_process_byte(uint8_t val, uint16_t **pp_seq)
+static void insert_one_symbol(uint16_t **seq)
 {
-    uint8_t byte;
+    memcpy(*seq, NEC_ONE, sizeof(NEC_ONE));
+    *seq += ARRAY_SIZE(NEC_ONE);
+}
 
-    byte = val;
+static void insert_zero_symbol(uint16_t **seq)
+{
+    memcpy(*seq, NEC_ZERO, sizeof(NEC_ZERO));
+    *seq += ARRAY_SIZE(NEC_ZERO);
+}
 
-    for (int i = 0; i < NEC_COMMAND_BITS; i++)
+static void frame_encoder_process(uint32_t val, size_t len, uint16_t **seq)
+{
+    uint32_t local;
+
+    local = val;
+
+    for (int i = 0; i < len; i++)
     {
-        if (byte & 0x01)
+        if (local & 0x01)
         {
-          insert_one_symbol(pp_seq);
+            insert_one_symbol(seq);
         }
         else
         {
-          insert_zero_symbol(pp_seq);
+            insert_zero_symbol(seq);
         }
 
-        byte = byte >> 1;
+        local = local >> 1;
     }
 }
-
-static uint16_t nec_symbol_encoder(const sr3_ir_symbol_t *p_nec_symbol)
+static uint16_t frame_encoder(const frame *p_frame, const ext_frame *p_ext_frame)
 {
-    uint16_t *p_seq;
+    uint16_t *seq;
     int i;
 
-    p_seq = m_seq_pwm_values;
-    insert_start_symbol(&p_seq);
+    seq = seq_pwm_values;
+    insert_start_symbol(&seq);
 
-    nec_symbol_encoder_process_byte(p_nec_symbol->ir_address, &p_seq);
-    nec_symbol_encoder_process_byte(p_nec_symbol->ir_address ^ 0xFF, &p_seq);
-    nec_symbol_encoder_process_byte(p_nec_symbol->ir_command, &p_seq);
-    nec_symbol_encoder_process_byte(p_nec_symbol->ir_command ^ 0xFF, &p_seq);
+    frame_encoder_process_byte(frame->content, FRAME_BITS, &seq);
+    insert_trailing_sequence(&seq);
+
+    insert_ext_frame_space(&seq);
+
+    frame_encoder_process_byte(ext_frame->content, EXT_FRAME_BITS, &seq);
 
     for (i = 0; i < NEC_GUARD_ZEROS; i++)
     {
-        // Trailing zero - to ensure 0 state when idle
-        insert_zero_symbol(&p_seq);
+        insert_zero_symbol(&seq);
     }
 
-    return (uint16_t)(p_seq - m_seq_pwm_values);
+    return (uint16_t)(seq - seq_pwm_values);
 }
 
-static uint16_t nec_repeat_symbol_encoder(void)
-{
-    uint16_t *p_seq;
+// static uint16_t nec_repeat_symbol_encoder(void)
+// {
+//     uint16_t *seq;
 
-    p_seq = &m_seq_pwm_values[0];
+//     seq = &seq_pwm_values[0];
 
-    memcpy(p_seq, NEC_REPEAT, sizeof(NEC_REPEAT));
-    p_seq += ARRAY_SIZE(NEC_REPEAT);
+//     memcpy(seq, NEC_REPEAT, sizeof(NEC_REPEAT));
+//     seq += ARRAY_SIZE(NEC_REPEAT);
 
-    // Set remaining values in PWM table to space
-    for (int i = 0; i < (ARRAY_SIZE(m_seq_pwm_values) - ARRAY_SIZE(NEC_REPEAT)); ++i)
-    {
-        p_seq[i] = NEC_SPACE_SYMBOL;
-    }
+//     // Set remaining values in PWM table to space
+//     for (int i = 0; i < (ARRAY_SIZE(seq_pwm_values) - ARRAY_SIZE(NEC_REPEAT)); ++i)
+//     {
+//         seq[i] = NEC_SPACE_SYMBOL;
+//     }
 
-    return (uint16_t)(p_seq - m_seq_pwm_values);
-}
+//     return (uint16_t)(seq - seq_pwm_values);
+// }
 
 static void pwm_handler(nrf_drv_pwm_evt_type_t event)
 {
     DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_PWM_INT);
 
-    if (((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1)) && (mp_ir_symbol == NULL))
+    if (((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1)) && (ir_symbol == NULL))
     {
-        nrf_drv_pwm_stop(&m_pwm, true); // Stop during repetition gap.
-        m_acknowledge_handler(NULL);    // Acknowledge end.
-        m_pwm_active = false;
+        nrf_drv_pwm_stop(&pwm, true); // Stop during repetition gap.
+        acknowledge_handler(NULL);    // Acknowledge end.
+        pwm_active = false;
 
         DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
     }
@@ -205,10 +273,10 @@ static void pwm_handler(nrf_drv_pwm_evt_type_t event)
 
     if (event == NRF_DRV_PWM_EVT_FINISHED)
     {
-        if (mp_ir_symbol == NULL)
+        if (ir_symbol == NULL)
         {
             // Acknowledge end.
-            m_acknowledge_handler(NULL);
+            acknowledge_handler(NULL);
 
             DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
         }
@@ -217,7 +285,7 @@ static void pwm_handler(nrf_drv_pwm_evt_type_t event)
             __NOP();
         }
 
-        m_pwm_active = false;
+        pwm_active = false;
     }
 }
 
@@ -226,14 +294,14 @@ ret_code_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
     bool callback_flag = false;
     uint16_t seq_length;
 
-    if (m_enabled_flag != true)
+    if (enabled_flag != true)
     {
         return NRF_ERROR_INVALID_STATE;
     }
 
     CRITICAL_REGION_ENTER();
-    mp_ir_symbol = p_ir_symbol;
-    if ((mp_ir_symbol == NULL) && !m_pwm_active)
+    ir_symbol = p_ir_symbol;
+    if ((ir_symbol == NULL) && !pwm_active)
     {
         callback_flag = true;
     }
@@ -242,31 +310,31 @@ ret_code_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
     if (callback_flag)
     {
         // Acknowledge of prematurely ended sequence - it won't be acknowledge by handler.
-        m_acknowledge_handler(NULL);
+        acknowledge_handler(NULL);
 
         DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
     }
-    else if (mp_ir_symbol)
+    else if (ir_symbol)
     {
-        seq_length = nec_symbol_encoder(mp_ir_symbol);
+        seq_length = nec_symbol_encoder(ir_symbol);
 
         if (seq_length > 0)
         {
-            m_seq.values.p_common   = m_seq_pwm_values;
-            m_seq.length            = seq_length;
-            m_seq.repeats           = NEC_SYMBOL_REPEATS;
-            m_seq.end_delay         = NEC_REPETION_PERIODS - ((NEC_SYMBOL_REPEATS + 1) * seq_length);
+            seq.values.p_common   = seq_pwm_values;
+            seq.length            = seq_length;
+            seq.repeats           = NEC_SYMBOL_REPEATS;
+            seq.end_delay         = NEC_REPETION_PERIODS - ((NEC_SYMBOL_REPEATS + 1) * seq_length);
         }
         else
         {
             return NRF_ERROR_NOT_SUPPORTED;
         }
 
-        m_pwm_active = true;
-        nrf_drv_pwm_simple_playback(&m_pwm, &m_seq, NEC_REPETION_MAX,
+        pwm_active = true;
+        nrf_drv_pwm_simple_playback(&pwm, &seq, NEC_REPETION_MAX,
                                     NRF_DRV_PWM_FLAG_SIGNAL_END_SEQ0 | NRF_DRV_PWM_FLAG_SIGNAL_END_SEQ1);
 
-        m_acknowledge_handler(mp_ir_symbol);
+        acknowledge_handler(ir_symbol);
         DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_SACK);
     }
 
@@ -275,20 +343,20 @@ ret_code_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 
 ret_code_t drv_ir_enable(void)
 {
-    ASSERT(m_enabled_flag == false);
+    ASSERT(enabled_flag == false);
 
-    m_enabled_flag = true;
-    nrf_pwm_enable(m_pwm.p_registers);
+    enabled_flag = true;
+    nrf_pwm_enable(pwm.p_registers);
 
     return NRF_SUCCESS;
 }
 
 ret_code_t drv_ir_disable(void)
 {
-    ASSERT(m_enabled_flag == true);
+    ASSERT(enabled_flag == true);
 
-    nrf_pwm_disable(m_pwm.p_registers);
-    m_enabled_flag = false;
+    nrf_pwm_disable(pwm.p_registers);
+    enabled_flag = false;
 
     return NRF_SUCCESS;
 }
@@ -307,7 +375,7 @@ ret_code_t drv_ir_init(drv_ir_callback_t acknowledge_handler)
             NRF_DRV_PWM_PIN_NOT_USED,
         },
 
-        .irq_priority   = APP_IRQ_PRIORITY_LOW,
+        .irq_priority   = AIRQ_PRIORITY_LOW,
         .base_clock     = NRF_PWM_CLK_16MHz,
         .count_mode     = NRF_PWM_MODE_UP,
         .top_value      = NEC_TOP_VALUE,
@@ -320,18 +388,16 @@ ret_code_t drv_ir_init(drv_ir_callback_t acknowledge_handler)
         return NRF_ERROR_INVALID_PARAM;
     }
 
-    m_acknowledge_handler   = acknowledge_handler;
-    m_enabled_flag          = false;
-    m_pwm_active            = false;
-    mp_ir_symbol            = NULL;
+    acknowledge_handler   = acknowledge_handler;
+    enabled_flag          = false;
+    pwm_active            = false;
+    ir_symbol             = NULL;
 
-    status = nrf_drv_pwm_init(&m_pwm, &config, pwm_handler);
+    status = nrf_drv_pwm_init(&pwm, &config, pwm_handler);
     if (status == NRF_SUCCESS)
     {
-        nrf_pwm_disable(m_pwm.p_registers);
+        nrf_pwm_disable(pwm.p_registers);
     }
 
     return status;
 }
-
-#endif /* CONFIG_IR_TX_ENABLED && (CONFIG_IR_PROTOCOL == CONFIG_IR_TX_PROTOCOL_NEC) */
