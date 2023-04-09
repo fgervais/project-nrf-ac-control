@@ -404,30 +404,30 @@ nrfx_err_t drv_ir_init(const struct device *dev)
 	const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
 
-	static const nrf_drv_pwm_config_t config =
-	{
-		.output_pins =
-		{
-			IS_IO_VALID(CONFIG_IO_IR_TX_LED) ? CONFIG_IO_IR_TX_LED : NRF_DRV_PWM_PIN_NOT_USED,
-			NRF_DRV_PWM_PIN_NOT_USED,
-			NRF_DRV_PWM_PIN_NOT_USED,
-			NRF_DRV_PWM_PIN_NOT_USED,
-		},
+	// static const nrf_drv_pwm_config_t config =
+	// {
+	// 	.output_pins =
+	// 	{
+	// 		IS_IO_VALID(CONFIG_IO_IR_TX_LED) ? CONFIG_IO_IR_TX_LED : NRF_DRV_PWM_PIN_NOT_USED,
+	// 		NRF_DRV_PWM_PIN_NOT_USED,
+	// 		NRF_DRV_PWM_PIN_NOT_USED,
+	// 		NRF_DRV_PWM_PIN_NOT_USED,
+	// 	},
 
-		.irq_priority   = AIRQ_PRIORITY_LOW,
-		.base_clock     = NRF_PWM_CLK_16MHz,
-		.count_mode     = NRF_PWM_MODE_UP,
-		.top_value      = NEC_TOP_VALUE,
-		.load_mode      = NRF_PWM_LOAD_COMMON,
-		.step_mode      = NRF_PWM_STEP_AUTO
-	};
+	// 	.irq_priority   = AIRQ_PRIORITY_LOW,
+	// 	.base_clock     = NRF_PWM_CLK_16MHz,
+	// 	.count_mode     = NRF_PWM_MODE_UP,
+	// 	.top_value      = NEC_TOP_VALUE,
+	// 	.load_mode      = NRF_PWM_LOAD_COMMON,
+	// 	.step_mode      = NRF_PWM_STEP_AUTO
+	// };
 
     // if (acknowledge_handler == NULL)
     // {
     //     return NRF_ERROR_INVALID_PARAM;
     // }
 
-	acknowledge_handler   = acknowledge_handler;
+	// acknowledge_handler   = acknowledge_handler;
 	enabled_flag          = false;
 	pwm_active            = false;
 	ir_symbol             = NULL;
@@ -495,8 +495,8 @@ nrfx_err_t drv_ir_init(const struct device *dev)
 
 	nrfx_err_t result = nrfx_pwm_init(&config->pwm,
 					  &config->initial_config,
-					  NULL,
-					  NULL);
+					  pwm_handler,
+					  dev);
 	if (result != NRFX_SUCCESS) {
 		LOG_ERR("Failed to initialize device: %s", dev->name);
 		return -EBUSY;
@@ -530,13 +530,13 @@ nrfx_err_t drv_ir_init(const struct device *dev)
 					PWM_OUTPUT_PIN(idx, 2),		      \
 					PWM_OUTPUT_PIN(idx, 3),		      \
 				 },))					      \
-			.base_clock = NRF_PWM_CLK_1MHz,			      \
+			.base_clock = NRF_PWM_CLK_16MHz,		      \
 			.count_mode = (PWM_PROP(idx, center_aligned)	      \
 				       ? NRF_PWM_MODE_UP_AND_DOWN	      \
 				       : NRF_PWM_MODE_UP),		      \
-			.top_value = 1000,				      \
-			.load_mode = NRF_PWM_LOAD_INDIVIDUAL,		      \
-			.step_mode = NRF_PWM_STEP_TRIGGERED,		      \
+			.top_value = NEC_TOP_VALUE,			      \
+			.load_mode = NRF_PWM_LOAD_COMMON,		      \
+			.step_mode = NRF_PWM_STEP_AUTO,		      \
 		},							      \
 		.seq.values.p_raw = pwm_nrfx_##idx##_data.seq_values,	      \
 		.seq.length = NRF_PWM_CHANNEL_COUNT,			      \
@@ -549,7 +549,7 @@ nrfx_err_t drv_ir_init(const struct device *dev)
 			 &pwm_nrfx_##idx##_data,			      \
 			 &pwm_nrfx_##idx##_config,			      \
 			 POST_KERNEL, CONFIG_PWM_INIT_PRIORITY,		      \
-			 &pwm_nrfx_drv_api_funcs)
+			 NULL)
 
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm0), okay)
 PWM_NRFX_DEVICE(0);
