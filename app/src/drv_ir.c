@@ -271,58 +271,58 @@ static uint16_t frame_encoder(const frame *p_frame, const ext_frame *p_ext_frame
 //     return (uint16_t)(seq - seq_pwm_values);
 // }
 
-static void pwm_handler(nrfx_pwm_evt_type_t event_type, void * p_context)
+// static void pwm_handler(nrfx_pwm_evt_type_t event_type, void * p_context)
+// // {
+// //     nrfx_pwm_t * inst = p_context;
+// //     static uint32_t curr_loop = 1;
+
+// //     NRFX_LOG_INFO("Loops: %u / %lu", curr_loop, NUM_OF_LOOPS);
+
+// //     if (curr_loop == NUM_OF_LOOPS)
+// //     {
+// //         NRFX_LOG_INFO("PWM finished");
+// //         nrfx_pwm_uninit(inst);
+// //     }
+// //     curr_loop++;
+// // }
+
+// // static void pwm_handler(nrf_drv_pwm_evt_type_t event)
 // {
-//     nrfx_pwm_t * inst = p_context;
-//     static uint32_t curr_loop = 1;
+//     // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_PWM_INT);
 
-//     NRFX_LOG_INFO("Loops: %u / %lu", curr_loop, NUM_OF_LOOPS);
+// 	if (((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1)) && (ir_symbol == NULL))
+// 	{
+// 		nrf_drv_pwm_stop(&pwm, true); // Stop during repetition gap.
+// 		// acknowledge_handler(NULL);    // Acknowledge end.
+// 		pwm_active = false;
 
-//     if (curr_loop == NUM_OF_LOOPS)
-//     {
-//         NRFX_LOG_INFO("PWM finished");
-//         nrfx_pwm_uninit(inst);
-//     }
-//     curr_loop++;
+// 		// DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
+// 	}
+// 	else if ((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1))
+// 	{
+// 		uint16_t seq_len;
+
+// 		seq_len = nec_repeat_symbol_encoder();
+// 		APP_ERROR_CHECK_BOOL(seq_len > 0 && seq_len < MAX_SEQ_SIZE);
+// 	}
+
+// 	if (event == NRF_DRV_PWM_EVT_FINISHED)
+// 	{
+// 		// if (ir_symbol == NULL)
+// 		// {
+// 	        //     // Acknowledge end.
+// 	        //     // acknowledge_handler(NULL);
+
+// 	        //     // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
+// 		// }
+// 		// else
+// 		// {
+// 		// 	__NOP();
+// 		// }
+
+// 		pwm_active = false;
+// 	}
 // }
-
-// static void pwm_handler(nrf_drv_pwm_evt_type_t event)
-{
-    // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_PWM_INT);
-
-	if (((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1)) && (ir_symbol == NULL))
-	{
-		nrf_drv_pwm_stop(&pwm, true); // Stop during repetition gap.
-		// acknowledge_handler(NULL);    // Acknowledge end.
-		pwm_active = false;
-
-		// DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
-	}
-		else if ((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1))
-	{
-		uint16_t seq_len;
-
-		seq_len = nec_repeat_symbol_encoder();
-		APP_ERROR_CHECK_BOOL(seq_len > 0 && seq_len < MAX_SEQ_SIZE);
-	}
-
-	if (event == NRF_DRV_PWM_EVT_FINISHED)
-	{
-		if (ir_symbol == NULL)
-		{
-	            // Acknowledge end.
-	            // acknowledge_handler(NULL);
-
-	            // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
-		}
-		else
-		{
-			__NOP();
-		}
-
-		pwm_active = false;
-	}
-}
 
 nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 {
@@ -495,8 +495,8 @@ nrfx_err_t drv_ir_init(const struct device *dev)
 
 	nrfx_err_t result = nrfx_pwm_init(&config->pwm,
 					  &config->initial_config,
-					  pwm_handler,
-					  dev);
+					  NULL,
+					  NULL);
 	if (result != NRFX_SUCCESS) {
 		LOG_ERR("Failed to initialize device: %s", dev->name);
 		return -EBUSY;
