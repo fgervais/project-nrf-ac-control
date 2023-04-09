@@ -101,17 +101,43 @@ const uint16_t EXT_FRAME_SPACE[] =
 	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL};
 
 const uint16_t NEC_ONE[] =
-{ NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL , NEC_SPACE_SYMBOL };
+	{ NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL , NEC_SPACE_SYMBOL };
 
 const uint16_t NEC_ZERO[] =
-{ NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL };
+	{ NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL };
 
 #define MAX_SEQ_SIZE    ARRAY_SIZE(NEC_START) + \
-(FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
-ARRAY_SIZE(TRAILING_SEQUENCE) + \
-ARRAY_SIZE(EXT_FRAME_SPACE) + \
-(EXT_FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
-(NEC_GUARD_ZEROS * ARRAY_SIZE(NEC_ZERO))
+			(FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
+			ARRAY_SIZE(TRAILING_SEQUENCE) + \
+			ARRAY_SIZE(EXT_FRAME_SPACE) + \
+			(EXT_FRAME_BITS) * MAX(ARRAY_SIZE(NEC_ZERO), ARRAY_SIZE(NEC_ONE)) + \
+			(NEC_GUARD_ZEROS * ARRAY_SIZE(NEC_ZERO))
+
+#define DRV_IR_TEMP_BASE_VALUE		16
+
+#define DRV_IR_FRAME_MODE_COOLING	0x1
+#define DRV_IR_FRAME_FAN_AUTO		0x0
+#define DRV_IR_FRAME_FAN_1		0x1
+#define DRV_IR_FRAME_FAN_2		0x2
+#define DRV_IR_FRAME_FAN_3		0x3
+#define DRV_IR_FRAME_FAN_3		0x3
+
+#define DRV_IR_EXT_FRAME_SWING_OFF	0x0
+#define DRV_IR_EXT_FRAME_SWING_ALL	0x1
+#define DRV_IR_EXT_FRAME_SWING_FIX_1	0x2 // Higher
+#define DRV_IR_EXT_FRAME_SWING_FIX_2	0x3 // .
+#define DRV_IR_EXT_FRAME_SWING_FIX_3	0x4 // .
+#define DRV_IR_EXT_FRAME_SWING_FIX_4	0x5 // .
+#define DRV_IR_EXT_FRAME_SWING_FIX_5	0x6 // Lower
+#define DRV_IR_EXT_FRAME_SWING_LOW	0x7
+#define DRV_IR_EXT_FRAME_SWING_MID	0x9
+#define DRV_IR_EXT_FRAME_SWING_MID	0x9
+#define DRV_IR_EXT_FRAME_TEMP_SHOW_ALL	0x0
+#define DRV_IR_EXT_FRAME_TEMP_SET	0x1
+#define DRV_IR_EXT_FRAME_TEMP_SHOW_IN	0x2
+#define DRV_IR_EXT_FRAME_TEMP_SHOW_OUT	0x3
+#define DRV_IR_EXT_FRAME_UNKNOWN_VAL	0x2
+#define DRV_IR_EXT_FRAME_COOLING_TEMP_OFFSET_C	0x5
 
 
 struct pwm_nrfx_config {
@@ -131,9 +157,11 @@ struct pwm_nrfx_data {
 	uint8_t  prescaler;
 	uint8_t  initially_inverted;
 	bool     stop_requested;
+	union drv_ir_frame	frame;
+	union drv_ir_ext_frame	ext_frame;
 };
 
-union frame
+union drv_ir_frame
 {
 	uint32_t content;
 	struct {
@@ -154,7 +182,7 @@ union frame
 	}
 };
 
-union ext_frame
+union drv_ir_ext_frame
 {
 	uint32_t content;
 	struct {
@@ -230,27 +258,175 @@ static void frame_encoder_process(uint32_t val, size_t len, uint16_t **seq)
 		local = local >> 1;
 	}
 }
-static uint16_t frame_encoder(const frame *p_frame, const ext_frame *p_ext_frame)
+
+static uint16_t drv_ir_encode_frame(const union *frame, const union *ext_frame, const uint16_t *buf)
 {
 	uint16_t *seq;
 	int i;
 
-	seq = seq_pwm_values;
+	const struct pwm_nrfx_config *config = dev->config;
+	struct pwm_nrfx_data *data = dev->data;
+
+	seq = config->seq;
 	insert_start_symbol(&seq);
 
-	frame_encoder_process_byte(frame->content, FRAME_BITS, &seq);
+	frame_encoder_process_byte(data->frame.content, FRAME_BITS, &seq);
 	insert_trailing_sequence(&seq);
 
 	insert_ext_frame_space(&seq);
 
-	frame_encoder_process_byte(ext_frame->content, EXT_FRAME_BITS, &seq);
+	frame_encoder_process_byte(data->ext_frame.content, EXT_FRAME_BITS, &seq);
 
 	for (i = 0; i < NEC_GUARD_ZEROS; i++)
 	{
 		insert_zero_symbol(&seq);
 	}
 
-	return (uint16_t)(seq - seq_pwm_values);
+	return (uint16_t)(seq - config->seq);
+}
+
+static int drv_ir_transmit_sequence(const struct device *dev)
+{
+	/* We assume here that period_cycles will always be 16MHz
+	 * peripheral clock. Since pwm_nrfx_get_cycles_per_sec() function might
+	 * be removed, see ISSUE #6958.
+	 * TODO: Remove this comment when issue has been resolved.
+	 */
+	const struct pwm_nrfx_config *config = dev->config;
+	struct pwm_nrfx_data *data = dev->data;
+	uint16_t compare_value;
+	bool inverted = (flags & PWM_POLARITY_INVERTED);
+	bool needs_pwm = false;
+
+	if (channel >= NRF_PWM_CHANNEL_COUNT) {
+		LOG_ERR("Invalid channel: %u.", channel);
+		return -EINVAL;
+	}
+
+	/* If this PWM is in center-aligned mode, pulse and period lengths
+	 * are effectively doubled by the up-down count, so halve them here
+	 * to compensate.
+	 */
+	if (config->initial_config.count_mode == NRF_PWM_MODE_UP_AND_DOWN) {
+		period_cycles /= 2;
+		pulse_cycles /= 2;
+	}
+
+	if (pulse_cycles == 0) {
+		/* Constantly inactive (duty 0%). */
+		compare_value = 0;
+	} else if (pulse_cycles >= period_cycles) {
+		/* Constantly active (duty 100%). */
+		/* This value is always greater than or equal to COUNTERTOP. */
+		compare_value = PWM_NRFX_CH_COMPARE_MASK;
+	} else {
+		/* PWM generation needed. Check if the requested period matches
+		 * the one that is currently set, or the PWM peripheral can be
+		 * reconfigured accordingly.
+		 */
+		if (!pwm_period_check_and_set(dev, channel, period_cycles)) {
+			return -EINVAL;
+		}
+
+		compare_value = (uint16_t)(pulse_cycles >> data->prescaler);
+		needs_pwm = true;
+	}
+
+	data->seq_values[channel] = PWM_NRFX_CH_VALUE(compare_value, inverted);
+
+	LOG_DBG("channel %u, pulse %u, period %u, prescaler: %u.",
+		channel, pulse_cycles, period_cycles, data->prescaler);
+
+	/* If this channel does not need to be driven by the PWM peripheral
+	 * because its state is to be constant (duty 0% or 100%), set properly
+	 * the GPIO configuration for its output pin. This will provide
+	 * the correct output state for this channel when the PWM peripheral
+	 * is stopped.
+	 */
+	if (!needs_pwm) {
+		uint32_t psel;
+
+		if (channel_psel_get(channel, &psel, config)) {
+			uint32_t out_level = (pulse_cycles == 0) ? 0 : 1;
+
+			if (inverted) {
+				out_level ^= 1;
+			}
+
+			nrf_gpio_pin_write(psel, out_level);
+		}
+
+		data->pwm_needed &= ~BIT(channel);
+	} else {
+		data->pwm_needed |= BIT(channel);
+	}
+
+	/* If the PWM generation is not needed for any channel (all are set
+	 * to constant inactive or active state), stop the PWM peripheral.
+	 * Otherwise, request a playback of the defined sequence so that
+	 * the PWM peripheral loads `seq_values` into its internal compare
+	 * registers and drives its outputs accordingly.
+	 */
+	if (data->pwm_needed == 0) {
+		/* Don't wait here for the peripheral to actually stop. Instead,
+		 * ensure it is stopped before starting the next playback.
+		 */
+		nrfx_pwm_stop(&config->pwm, false);
+		data->stop_requested = true;
+	} else {
+		if (data->stop_requested) {
+			data->stop_requested = false;
+
+			/* After a stop is requested, the PWM peripheral stops
+			 * pulse generation at the end of the current period,
+			 * and till that moment, it ignores any start requests,
+			 * so ensure here that it is stopped.
+			 */
+			while (!nrfx_pwm_is_stopped(&config->pwm)) {
+			}
+		}
+
+		/* It is sufficient to play the sequence once without looping.
+		 * The PWM generation will continue with the loaded values
+		 * until another playback is requested (new values will be
+		 * loaded then) or the PWM peripheral is stopped.
+		 */
+		nrfx_pwm_simple_playback(&config->pwm, &config->seq, 1, 0);
+	}
+
+	return 0;
+}
+
+int drv_ir_send_on(const struct device *dev)
+{
+	const struct pwm_nrfx_config *config = dev->config;
+	struct pwm_nrfx_data *data = dev->data;
+
+	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
+	data->frame.on = 1;
+	data->frame.oscillating = 1;
+	data->frame.temperature = 22 - DRV_IR_TEMP_BASE_VALUE;
+	data->frame.light = 1;
+
+	data->ext_frame.swing = DRV_IR_EXT_FRAME_SWING_ALL;
+	data->ext_frame.temp = DRV_IR_EXT_FRAME_TEMP_SHOW_ALL;
+	data->ext_frame.i_feel = 0;
+	data->ext_frame.unknown = DRV_IR_EXT_FRAME_UNKNOWN_VAL;
+	data->ext_frame.temperature = (
+		(22 - DRV_IR_TEMP_BASE_VALUE) + DRV_IR_EXT_FRAME_COOLING_TEMP_OFFSET_C
+	) & 0x0F;
+
+	LOG_INF("Frame: %08x", data->frame.content);
+	LOG_INF("Extended frame: %08x", data->ext_frame.content);
+
+	config->seq.values.length = drv_ir_encode_frame(
+		&data->frame, &data->ext_frame, config->seq.values.p_raw);
+
+	drv_ir_transmit_sequence(dev);
+
+	LOG_DBG("Transmission requested");
+
+	return 0;
 }
 
 // static uint16_t nec_repeat_symbol_encoder(void)
@@ -324,7 +500,7 @@ static uint16_t frame_encoder(const frame *p_frame, const ext_frame *p_ext_frame
 // 	}
 // }
 
-nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
+static nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 {
 	bool callback_flag = false;
 	uint16_t seq_length;
@@ -378,6 +554,7 @@ nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 	return NRFX_SUCCESS;
 }
 
+
 // nrfx_err_t drv_ir_enable(void)
 // {
 //     ASSERT(enabled_flag == false);
@@ -398,7 +575,7 @@ nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 //     return NRFX_SUCCESS;
 // }
 
-nrfx_err_t drv_ir_init(const struct device *dev)
+static int drv_ir_init(const struct device *dev)
 {
 	nrfx_err_t status;
 	const struct pwm_nrfx_config *config = dev->config;
