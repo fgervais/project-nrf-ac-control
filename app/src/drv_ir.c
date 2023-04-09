@@ -69,9 +69,9 @@ LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 #define NEC_MARK_SYMBOL         0x808C   // 140/421 (1/16000000 sec)  - duty 1/3
 #define NEC_SPACE_SYMBOL        0x8000
 
-#define NEC_REPETION_MAX        91       // X times with 110 ms period
-#define NEC_REPETION_TIME       1760000  // 1760000 / 16 MHz = 110 ms
-#define NEC_REPETION_PERIODS    (NEC_REPETION_TIME / NEC_TOP_VALUE)
+// #define NEC_REPETION_MAX        91       // X times with 110 ms period
+// #define NEC_REPETION_TIME       1760000  // 1760000 / 16 MHz = 110 ms
+// #define  NEC_REPETION_TIME / NEC_TOP_VALUE)
 
 #define PWM_INST_IDX            0
 
@@ -351,18 +351,18 @@ nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 	}
 	else if (ir_symbol)
 	{
-		seq_length = nec_symbol_encoder(ir_symbol);
+		seq_length = frame_encoder(ir_symbol);
 
 		if (seq_length > 0)
 		{
 			seq.values.p_common   = seq_pwm_values;
 			seq.length            = seq_length;
 			seq.repeats           = NEC_SYMBOL_REPEATS;
-			seq.end_delay         = NEC_REPETION_PERIODS - ((NEC_SYMBOL_REPEATS + 1) * seq_length);
+			seq.end_delay         = 0;
 		}
 		else
 		{
-			return NRF_ERROR_NOT_SUPPORTED;
+			return NRFX_ERROR_NOT_SUPPORTED;
 		}
 
 		pwm_active = true;
