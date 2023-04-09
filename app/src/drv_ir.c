@@ -114,6 +114,25 @@ ARRAY_SIZE(EXT_FRAME_SPACE) + \
 (NEC_GUARD_ZEROS * ARRAY_SIZE(NEC_ZERO))
 
 
+struct pwm_nrfx_config {
+	nrfx_pwm_t pwm;
+	nrfx_pwm_config_t initial_config;
+	nrf_pwm_sequence_t seq;
+#ifdef CONFIG_PINCTRL
+	const struct pinctrl_dev_config *pcfg;
+#endif
+};
+
+struct pwm_nrfx_data {
+	uint32_t period_cycles;
+	uint16_t seq_values[NRF_PWM_CHANNEL_COUNT];
+	/* Bit mask indicating channels that need the PWM generation. */
+	uint8_t  pwm_needed;
+	uint8_t  prescaler;
+	uint8_t  initially_inverted;
+	bool     stop_requested;
+};
+
 union frame
 {
 	uint32_t content;
@@ -379,10 +398,11 @@ nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
 //     return NRFX_SUCCESS;
 // }
 
-nrfx_err_t drv_ir_init(void)
+nrfx_err_t drv_ir_init(const struct device *dev)
 {
 	nrfx_err_t status;
-	const struct pinctrl_dev_config *pcfg = PINCTRL_DT_DEV_CONFIG_GET(PWM(PWM_INST_IDX));
+	const struct pwm_nrfx_config *config = dev->config;
+	struct pwm_nrfx_data *data = dev->data;
 
 	static const nrf_drv_pwm_config_t config =
 	{
@@ -419,6 +439,8 @@ nrfx_err_t drv_ir_init(void)
     // }
 
 
+
+#ifdef CONFIG_PINCTRL
 	int ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	if (ret < 0) {
@@ -435,25 +457,52 @@ nrfx_err_t drv_ir_init(void)
 			 * idle state means that the channel is inverted).
 			 */
 			data->initially_inverted |=
-			nrf_gpio_pin_out_read(psel) ? BIT(i) : 0;
+				nrf_gpio_pin_out_read(psel) ? BIT(i) : 0;
 		}
 	}
-
-
-
-
-	nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(PWM_INST_IDX);
-	nrfx_pwm_config_t config = NRFX_PWM_DEFAULT_CONFIG(LED1_PIN, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED);
-	status = nrfx_pwm_init(&pwm_instance, &config, pwm_handler, &pwm_instance);
-	NRFX_ASSERT(status == NRFX_SUCCESS);
-
-#if defined(__ZEPHYR__)
-    #define PWM_INST         NRFX_CONCAT_2(NRF_PWM, PWM_INST_IDX)
-    #define PWM_INST_HANDLER NRFX_CONCAT_3(nrfx_pwm_, PWM_INST_IDX, _irq_handler)
-	IRQ_DIRECT_CONNECT(NRFX_IRQ_NUMBER_GET(PWM_INST), IRQ_PRIO_LOWEST, PWM_INST_HANDLER, 0);
 #endif
 
-	return status;
+	for (size_t i = 0; i < ARRAY_SIZE(data->seq_values); i++) {
+		bool inverted = data->initially_inverted & BIT(i);
+
+		data->seq_values[i] = PWM_NRFX_CH_VALUE(0, inverted);
+	}
+
+	
+
+
+
+
+
+
+
+// 	nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(PWM_INST_IDX);
+// 	nrfx_pwm_config_t config = NRFX_PWM_DEFAULT_CONFIG(LED1_PIN, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED);
+// 	status = nrfx_pwm_init(&pwm_instance, &config, pwm_handler, &pwm_instance);
+// 	NRFX_ASSERT(status == NRFX_SUCCESS);
+
+// #if defined(__ZEPHYR__)
+//     #define PWM_INST         NRFX_CONCAT_2(NRF_PWM, PWM_INST_IDX)
+//     #define PWM_INST_HANDLER NRFX_CONCAT_3(nrfx_pwm_, PWM_INST_IDX, _irq_handler)
+// 	IRQ_DIRECT_CONNECT(NRFX_IRQ_NUMBER_GET(PWM_INST), IRQ_PRIO_LOWEST, PWM_INST_HANDLER, 0);
+// #endif
+
+// 	return status;
+
+
+
+
+
+	nrfx_err_t result = nrfx_pwm_init(&config->pwm,
+					  &config->initial_config,
+					  NULL,
+					  NULL);
+	if (result != NRFX_SUCCESS) {
+		LOG_ERR("Failed to initialize device: %s", dev->name);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 
