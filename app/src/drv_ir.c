@@ -45,6 +45,7 @@
 // #include "adebug.h"
 
 #include <nrfx_pwm.h>
+#include <zephyr/drivers/pinctrl.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
@@ -401,21 +402,118 @@ nrfx_err_t drv_ir_init(void)
         .step_mode      = NRF_PWM_STEP_AUTO
     };
 
-    if (acknowledge_handler == NULL)
-    {
-        return NRF_ERROR_INVALID_PARAM;
-    }
+    // if (acknowledge_handler == NULL)
+    // {
+    //     return NRF_ERROR_INVALID_PARAM;
+    // }
 
     acknowledge_handler   = acknowledge_handler;
     enabled_flag          = false;
     pwm_active            = false;
     ir_symbol             = NULL;
 
-    status = nrf_drv_pwm_init(&pwm, &config, pwm_handler);
-    if (status == NRF_SUCCESS)
-    {
-        nrf_pwm_disable(pwm.p_registers);
+    // status = nrf_drv_pwm_init(&pwm, &config, pwm_handler);
+    // if (status == NRFX_SUCCESS)
+    // {
+    //     nrf_pwm_disable(pwm.p_registers);
+    // }
+
+
+    int ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+
+    if (ret < 0) {
+        return ret;
     }
+
+    data->initially_inverted = 0;
+    for (size_t i = 0; i < ARRAY_SIZE(data->seq_values); i++) {
+        uint32_t psel;
+
+        if (channel_psel_get(i, &psel, config)) {
+            /* Mark channels as inverted according to what initial
+             * state of their outputs has been set by pinctrl (high
+             * idle state means that the channel is inverted).
+             */
+            data->initially_inverted |=
+                nrf_gpio_pin_out_read(psel) ? BIT(i) : 0;
+        }
+    }
+
+
+
+
+    nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(PWM_INST_IDX);
+    nrfx_pwm_config_t config = NRFX_PWM_DEFAULT_CONFIG(LED1_PIN, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED);
+    status = nrfx_pwm_init(&pwm_instance, &config, pwm_handler, &pwm_instance);
+    NRFX_ASSERT(status == NRFX_SUCCESS);
+
+#if defined(__ZEPHYR__)
+    #define PWM_INST         NRFX_CONCAT_2(NRF_PWM, PWM_INST_IDX)
+    #define PWM_INST_HANDLER NRFX_CONCAT_3(nrfx_pwm_, PWM_INST_IDX, _irq_handler)
+    IRQ_DIRECT_CONNECT(NRFX_IRQ_NUMBER_GET(PWM_INST), IRQ_PRIO_LOWEST, PWM_INST_HANDLER, 0);
+#endif
 
     return status;
 }
+
+
+#define PWM_NRFX_DEVICE(idx)                                    \
+    NRF_DT_CHECK_PIN_ASSIGNMENTS(PWM(idx), 1,                 \
+                     ch0_pin, ch1_pin, ch2_pin, ch3_pin);     \
+    static struct pwm_nrfx_data pwm_nrfx_##idx##_data = {             \
+        COND_CODE_1(CONFIG_PINCTRL, (),                   \
+            (.initially_inverted =                    \
+                (PWM_CH_INVERTED(idx, 0) ? BIT(0) : 0) |      \
+                (PWM_CH_INVERTED(idx, 1) ? BIT(1) : 0) |      \
+                (PWM_CH_INVERTED(idx, 2) ? BIT(2) : 0) |      \
+                (PWM_CH_INVERTED(idx, 3) ? BIT(3) : 0),))     \
+    };                                    \
+    IF_ENABLED(CONFIG_PINCTRL, (PINCTRL_DT_DEFINE(PWM(idx))));        \
+    static const struct pwm_nrfx_config pwm_nrfx_##idx##_config = {       \
+        .pwm = NRFX_PWM_INSTANCE(idx),                    \
+        .initial_config = {                       \
+            COND_CODE_1(CONFIG_PINCTRL,               \
+                (.skip_gpio_cfg = true,               \
+                 .skip_psel_cfg = true,),             \
+                (.output_pins = {                 \
+                    PWM_OUTPUT_PIN(idx, 0),           \
+                    PWM_OUTPUT_PIN(idx, 1),           \
+                    PWM_OUTPUT_PIN(idx, 2),           \
+                    PWM_OUTPUT_PIN(idx, 3),           \
+                 },))                         \
+            .base_clock = NRF_PWM_CLK_1MHz,               \
+            .count_mode = (PWM_PROP(idx, center_aligned)          \
+                       ? NRF_PWM_MODE_UP_AND_DOWN         \
+                       : NRF_PWM_MODE_UP),            \
+            .top_value = 1000,                    \
+            .load_mode = NRF_PWM_LOAD_INDIVIDUAL,             \
+            .step_mode = NRF_PWM_STEP_TRIGGERED,              \
+        },                                \
+        .seq.values.p_raw = pwm_nrfx_##idx##_data.seq_values,         \
+        .seq.length = NRF_PWM_CHANNEL_COUNT,                  \
+        IF_ENABLED(CONFIG_PINCTRL,                    \
+            (.pcfg = PINCTRL_DT_DEV_CONFIG_GET(PWM(idx)),))       \
+    };                                    \
+    PM_DEVICE_DT_DEFINE(PWM(idx), pwm_nrfx_pm_action);            \
+    DEVICE_DT_DEFINE(PWM(idx),                        \
+             drv_ir_init, PM_DEVICE_DT_GET(PWM(idx)),       \
+             &pwm_nrfx_##idx##_data,                  \
+             &pwm_nrfx_##idx##_config,                \
+             POST_KERNEL, CONFIG_PWM_INIT_PRIORITY,           \
+             &pwm_nrfx_drv_api_funcs)
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm0), okay)
+PWM_NRFX_DEVICE(0);
+#endif
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm1), okay)
+PWM_NRFX_DEVICE(1);
+#endif
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm2), okay)
+PWM_NRFX_DEVICE(2);
+#endif
+
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm3), okay)
+PWM_NRFX_DEVICE(3);
+#endif
