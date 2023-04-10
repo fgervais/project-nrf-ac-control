@@ -710,6 +710,70 @@ static int drv_ir_init(const struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_DEVICE
+static void drv_ir_uninit(const struct device *dev)
+{
+	const struct pwm_nrfx_config *config = dev->config;
+
+	nrfx_pwm_uninit(&config->pwm);
+
+	memset(dev->data, 0, sizeof(struct pwm_nrfx_data));
+}
+
+static int drv_ir_pm_action(const struct device *dev,
+			      enum pm_device_action action)
+{
+#ifdef CONFIG_PINCTRL
+	const struct pwm_nrfx_config *config = dev->config;
+#endif
+	int ret = 0;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+#ifdef CONFIG_PINCTRL
+		ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+		if (ret < 0) {
+			return ret;
+		}
+#endif
+		ret = drv_ir_init(dev);
+		break;
+
+	case PM_DEVICE_ACTION_SUSPEND:
+		drv_ir_uninit(dev);
+
+#ifdef CONFIG_PINCTRL
+		ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_SLEEP);
+		if (ret < 0) {
+			return ret;
+		}
+#endif
+		break;
+
+	default:
+		return -ENOTSUP;
+	}
+
+	return ret;
+}
+#else
+
+#define drv_ir_pm_action NULL
+
+#endif /* CONFIG_PM_DEVICE */
+
+#define PWM(dev_idx) DT_NODELABEL(pwm##dev_idx)
+#define PWM_PROP(dev_idx, prop) DT_PROP(PWM(dev_idx), prop)
+
+#define PWM_CH_INVERTED(dev_idx, ch_idx) \
+	PWM_PROP(dev_idx, ch##ch_idx##_inverted)
+
+#define PWM_OUTPUT_PIN(dev_idx, ch_idx)					\
+	COND_CODE_1(DT_NODE_HAS_PROP(PWM(dev_idx), ch##ch_idx##_pin),	\
+		(PWM_PROP(dev_idx, ch##ch_idx##_pin) |			\
+			(PWM_CH_INVERTED(dev_idx, ch_idx)		\
+			 ? NRFX_PWM_PIN_INVERTED : 0)),			\
+		(NRFX_PWM_PIN_NOT_USED))
 
 #define PWM_NRFX_DEVICE(idx)						      \
 	NRF_DT_CHECK_PIN_ASSIGNMENTS(PWM(idx), 1,			      \
@@ -748,12 +812,12 @@ static int drv_ir_init(const struct device *dev)
 		IF_ENABLED(CONFIG_PINCTRL,				      \
 			(.pcfg = PINCTRL_DT_DEV_CONFIG_GET(PWM(idx)),))	      \
 	};								      \
-	PM_DEVICE_DT_DEFINE(PWM(idx), pwm_nrfx_pm_action);		      \
+	PM_DEVICE_DT_DEFINE(PWM(idx), drv_ir_pm_action);		      \
 	DEVICE_DT_DEFINE(PWM(idx),					      \
 			 drv_ir_init, PM_DEVICE_DT_GET(PWM(idx)),	      \
 			 &pwm_nrfx_##idx##_data,			      \
 			 &pwm_nrfx_##idx##_config,			      \
-			 POST_KERNEL, CONFIG_PWM_INIT_PRIORITY,		      \
+			 POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,     \
 			 NULL)
 
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(pwm0), okay)

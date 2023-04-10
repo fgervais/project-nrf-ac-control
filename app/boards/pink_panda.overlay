@@ -130,9 +130,9 @@
 &uart1 {
 	status = "disabled";
 };
-&pwm0 {
-	status = "disabled";
-};
+// &pwm0 {
+// 	status = "disabled";
+// };
 &i2c0 {
 	status = "disabled";
 };
