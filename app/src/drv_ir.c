@@ -306,14 +306,14 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 	return (uint16_t)(seq - data->seq_values);
 }
 
-static bool channel_psel_get(uint32_t channel, uint32_t *psel,
-			     const struct pwm_nrfx_config *config)
-{
-	*psel = nrf_pwm_pin_get(config->pwm.p_registers, (uint8_t)channel);
+// static bool channel_psel_get(uint32_t channel, uint32_t *psel,
+// 			     const struct pwm_nrfx_config *config)
+// {
+// 	*psel = nrf_pwm_pin_get(config->pwm.p_registers, (uint8_t)channel);
 
-	return (((*psel & PWM_PSEL_OUT_CONNECT_Msk) >> PWM_PSEL_OUT_CONNECT_Pos)
-		== PWM_PSEL_OUT_CONNECT_Connected);
-}
+// 	return (((*psel & PWM_PSEL_OUT_CONNECT_Msk) >> PWM_PSEL_OUT_CONNECT_Pos)
+// 		== PWM_PSEL_OUT_CONNECT_Connected);
+// }
 
 static int drv_ir_transmit_sequence(const struct device *dev)
 {
