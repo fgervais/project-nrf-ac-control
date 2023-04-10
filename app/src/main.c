@@ -11,6 +11,8 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
+#include "drv_ir.h"
+
 
 #define SLEEP_TIME_MS   10
 #define LED0_NODE DT_ALIAS(myled0alias)
