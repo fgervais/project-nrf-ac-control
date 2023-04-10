@@ -24,6 +24,7 @@ void main(void)
 {
 	int ret;
 	const struct device *cons = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 
 
 	if (app_event_manager_init()) {
@@ -39,6 +40,11 @@ void main(void)
 	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
 	if (ret < 0) {
 		return;
+	}
+
+	while(1) {
+		drv_ir_send_on(pwm0);
+		k_sleep(K_SECONDS(1));
 	}
 
 	LOG_INF("****************************************");
