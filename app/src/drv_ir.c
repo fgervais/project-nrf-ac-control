@@ -36,6 +36,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
+ *  * Copyright (c) 2018, Cue Health Inc
+ *
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 // #include <string.h>
