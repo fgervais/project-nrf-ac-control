@@ -195,7 +195,7 @@ union drv_ir_ext_frame
 	struct {
 		uint32_t swing 		: 4;
 		uint32_t 		: 4;
-		uint32_t temp 		: 4;
+		uint32_t temp 		: 2;
 		uint32_t i_feel 	: 1;
 		uint32_t 		: 1;
 		uint32_t unknown 	: 4;
