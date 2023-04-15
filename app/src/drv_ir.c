@@ -201,7 +201,6 @@ union drv_ir_ext_frame
 struct pwm_nrfx_config {
 	nrfx_pwm_t pwm;
 	nrfx_pwm_config_t initial_config;
-	nrf_pwm_sequence_t seq;
 #ifdef CONFIG_PINCTRL
 	const struct pinctrl_dev_config *pcfg;
 #endif
@@ -213,8 +212,9 @@ struct pwm_nrfx_data {
 	/* Bit mask indicating channels that need the PWM generation. */
 	// uint8_t  pwm_needed;
 	// uint8_t  prescaler;
-	uint8_t  initially_inverted;
+	// uint8_t  initially_inverted;
 	// bool     stop_requested;
+	nrf_pwm_sequence_t	seq;
 	union drv_ir_frame	frame;
 	union drv_ir_ext_frame	ext_frame;
 };
@@ -321,7 +321,7 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 static int drv_ir_transmit_sequence(const struct device *dev)
 {
 	const struct pwm_nrfx_config *config = dev->config;
-	// struct pwm_nrfx_data *data = dev->data;
+	struct pwm_nrfx_data *data = dev->data;
 	// uint16_t compare_value;
 	// bool inverted = (flags & PWM_POLARITY_INVERTED);
 	// bool needs_pwm = false;
@@ -422,7 +422,7 @@ static int drv_ir_transmit_sequence(const struct device *dev)
 	// 	nrfx_pwm_simple_playback(&config->pwm, &config->seq, 1, 0);
 	// }
 
-	nrfx_pwm_simple_playback(&config->pwm, &config->seq, 1, 0);
+	nrfx_pwm_simple_playback(&config->pwm, &data->seq, 1, 0);
 
 	return 0;
 }
@@ -430,7 +430,7 @@ static int drv_ir_transmit_sequence(const struct device *dev)
 #define TARGET_TEMPERATURE 22
 int drv_ir_send_on(const struct device *dev)
 {
-	struct pwm_nrfx_config *config = (struct pwm_nrfx_config *)dev->config;
+	// const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
 
 	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
@@ -451,8 +451,15 @@ int drv_ir_send_on(const struct device *dev)
 	LOG_INF("Frame: %08x", data->frame.content);
 	LOG_INF("Extended frame: %08x", data->ext_frame.content);
 
-	config->seq.length = drv_ir_encode_frame(
+	// config->seq.length = drv_ir_encode_frame(
+	data->seq.length = drv_ir_encode_frame(
 		dev, &data->frame, &data->ext_frame, data->seq_values);
+
+	LOG_INF("Frame length: 0x%x", data->seq.length);
+
+	// config->seq.length = length;
+
+	LOG_INF("Transmission ready");
 
 	drv_ir_transmit_sequence(dev);
 
@@ -784,15 +791,11 @@ static int drv_ir_pm_action(const struct device *dev,
 	NRF_DT_CHECK_PIN_ASSIGNMENTS(PWM(idx), 1,			      \
 				     ch0_pin, ch1_pin, ch2_pin, ch3_pin);     \
 	static struct pwm_nrfx_data pwm_nrfx_##idx##_data = {		      \
-		COND_CODE_1(CONFIG_PINCTRL, (),				      \
-			(.initially_inverted =				      \
-				(PWM_CH_INVERTED(idx, 0) ? BIT(0) : 0) |      \
-				(PWM_CH_INVERTED(idx, 1) ? BIT(1) : 0) |      \
-				(PWM_CH_INVERTED(idx, 2) ? BIT(2) : 0) |      \
-				(PWM_CH_INVERTED(idx, 3) ? BIT(3) : 0),))     \
+		.seq.values.p_raw = pwm_nrfx_##idx##_data.seq_values,	      \
+		.seq.repeats = NEC_SYMBOL_REPEATS,			      \
 	};								      \
 	IF_ENABLED(CONFIG_PINCTRL, (PINCTRL_DT_DEFINE(PWM(idx))));	      \
-	static const struct pwm_nrfx_config pwm_nrfx_##idx##_config = {	      \
+	static struct pwm_nrfx_config pwm_nrfx_##idx##_config = {	      \
 		.pwm = NRFX_PWM_INSTANCE(idx),				      \
 		.initial_config = {					      \
 			COND_CODE_1(CONFIG_PINCTRL,			      \
@@ -812,9 +815,6 @@ static int drv_ir_pm_action(const struct device *dev,
 			.load_mode = NRF_PWM_LOAD_COMMON,		      \
 			.step_mode = NRF_PWM_STEP_AUTO,			      \
 		},							      \
-		.seq.values.p_raw = pwm_nrfx_##idx##_data.seq_values,	      \
-		.seq.length = 0,					      \
-		.seq.repeats = NEC_SYMBOL_REPEATS,			      \
 		IF_ENABLED(CONFIG_PINCTRL,				      \
 			(.pcfg = PINCTRL_DT_DEV_CONFIG_GET(PWM(idx)),))	      \
 	};								      \
