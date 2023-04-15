@@ -655,6 +655,8 @@ static int drv_ir_init(const struct device *dev)
     //     nrf_pwm_disable(pwm.p_registers);
     // }
 
+	LOG_INF("Init");
+
 
 
 #ifdef CONFIG_PINCTRL
