@@ -814,6 +814,7 @@ static int drv_ir_pm_action(const struct device *dev,
 		},							      \
 		.seq.values.p_raw = pwm_nrfx_##idx##_data.seq_values,	      \
 		.seq.length = 0,					      \
+		.seq.repeats = NEC_SYMBOL_REPEATS,			      \
 		IF_ENABLED(CONFIG_PINCTRL,				      \
 			(.pcfg = PINCTRL_DT_DEV_CONFIG_GET(PWM(idx)),))	      \
 	};								      \
