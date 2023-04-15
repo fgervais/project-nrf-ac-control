@@ -41,45 +41,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// #include <string.h>
-// #include "nrf_drv_pwm.h"
-// #include "drv_ir.h"
-// #include "autil_platform.h"
-// #include "adebug.h"
-
 #include <nrfx_pwm.h>
 #include <zephyr/drivers/pinctrl.h>
-
-
-
-
-// #include <zephyr/drivers/pwm.h>
 #include <zephyr/pm/device.h>
-// #include <soc.h>
-// #include <hal/nrf_gpio.h>
-// #include <stdbool.h>
-
-
-
-
-// #include <nrfx.h>
-// #include <hal/nrf_gpio.h>
-
-
-
-
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 
 
-// #define NRF_LOG_MODULE_NAME drv_ir_nec
-// #define NRF_LOG_LEVEL CONFIG_IR_DRV_LOG_LEVEL
-// #include "nrf_log.h"
-// NRF_LOG_MODULE_REGISTER();
-
-// #define COMMAND_BITS        8
-// #define NEC_ADDRESS_BITS        8
 #define NEC_GUARD_ZEROS         1
 #define TRAILING_SEQUENCE_BITS  8
 #define FRAME_BITS              28
@@ -91,11 +60,6 @@ LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 #define NEC_MARK_SYMBOL         0x808C   // 140/421 (1/16000000 sec)  - duty 1/3
 #define NEC_SPACE_SYMBOL        0x8000
 
-// #define NEC_REPETION_MAX        91       // X times with 110 ms period
-// #define NEC_REPETION_TIME       1760000  // 1760000 / 16 MHz = 110 ms
-// #define  NEC_REPETION_TIME / NEC_TOP_VALUE)
-
-// #define PWM_INST_IDX            0
 
 // 9 ms high, 4.4 ms low
 const uint16_t NEC_START[] =
@@ -106,6 +70,7 @@ const uint16_t NEC_START[] =
 	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
 	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL};
 
+// 1010 0101
 const uint16_t TRAILING_SEQUENCE[] =
 	{ NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL , NEC_SPACE_SYMBOL, \
 	  NEC_MARK_SYMBOL, NEC_SPACE_SYMBOL,					  \
@@ -213,28 +178,12 @@ struct pwm_nrfx_config {
 };
 
 struct pwm_nrfx_data {
-	// uint32_t period_cycles;
 	uint16_t seq_values[MAX_SEQ_SIZE];
-	/* Bit mask indicating channels that need the PWM generation. */
-	// uint8_t  pwm_needed;
-	// uint8_t  prescaler;
-	// uint8_t  initially_inverted;
-	// bool     stop_requested;
 	nrf_pwm_sequence_t	seq;
 	union drv_ir_frame	frame;
 	union drv_ir_ext_frame	ext_frame;
 };
 
-
-// static nrf_drv_pwm_t            pwm = CONFIG_IR_TX_PWM_INSTANCE;
-// static nrfx_pwm_t               pwm = NRFX_PWM_INSTANCE(PWM_INST_IDX);
-// static uint16_t                 seq_pwm_values[MAX_SEQ_SIZE];
-// static nrf_pwm_sequence_t       seq;
-// static drv_ir_callback_t        acknowledge_handler;
-// static const union drv_ir_frame        *frame;
-// static const union drv_ir_ext_frame    *ext_frame;
-// static bool                     pwm_active;
-// static bool                     enabled_flag;  
 
 static void insert_start_symbol(uint16_t **seq)
 {
@@ -315,118 +264,10 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 	return (uint16_t)(seq - data->seq_values);
 }
 
-// static bool channel_psel_get(uint32_t channel, uint32_t *psel,
-// 			     const struct pwm_nrfx_config *config)
-// {
-// 	*psel = nrf_pwm_pin_get(config->pwm.p_registers, (uint8_t)channel);
-
-// 	return (((*psel & PWM_PSEL_OUT_CONNECT_Msk) >> PWM_PSEL_OUT_CONNECT_Pos)
-// 		== PWM_PSEL_OUT_CONNECT_Connected);
-// }
-
 static int drv_ir_transmit_sequence(const struct device *dev)
 {
 	const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
-	// uint16_t compare_value;
-	// bool inverted = (flags & PWM_POLARITY_INVERTED);
-	// bool needs_pwm = false;
-
-	// if (channel >= NRF_PWM_CHANNEL_COUNT) {
-	// 	LOG_ERR("Invalid channel: %u.", channel);
-	// 	return -EINVAL;
-	// }
-
-	/* If this PWM is in center-aligned mode, pulse and period lengths
-	 * are effectively doubled by the up-down count, so halve them here
-	 * to compensate.
-	 */
-	// if (config->initial_config.count_mode == NRF_PWM_MODE_UP_AND_DOWN) {
-	// 	period_cycles /= 2;
-	// 	pulse_cycles /= 2;
-	// }
-
-	// if (pulse_cycles == 0) {
-	// 	/* Constantly inactive (duty 0%). */
-	// 	compare_value = 0;
-	// } else if (pulse_cycles >= period_cycles) {
-	// 	/* Constantly active (duty 100%). */
-	// 	/* This value is always greater than or equal to COUNTERTOP. */
-	// 	compare_value = PWM_NRFX_CH_COMPARE_MASK;
-	// } else {
-	// 	/* PWM generation needed. Check if the requested period matches
-	// 	 * the one that is currently set, or the PWM peripheral can be
-	// 	 * reconfigured accordingly.
-	// 	 */
-	// 	if (!pwm_period_check_and_set(dev, channel, period_cycles)) {
-	// 		return -EINVAL;
-	// 	}
-
-	// 	compare_value = (uint16_t)(pulse_cycles >> data->prescaler);
-	// 	needs_pwm = true;
-	// }
-
-	// data->seq_values[channel] = PWM_NRFX_CH_VALUE(compare_value, inverted);
-
-	// LOG_DBG("channel %u, pulse %u, period %u, prescaler: %u.",
-	// 	channel, pulse_cycles, period_cycles, data->prescaler);
-
-	/* If this channel does not need to be driven by the PWM peripheral
-	 * because its state is to be constant (duty 0% or 100%), set properly
-	 * the GPIO configuration for its output pin. This will provide
-	 * the correct output state for this channel when the PWM peripheral
-	 * is stopped.
-	 */
-	// if (!needs_pwm) {
-	// 	uint32_t psel;
-
-	// 	if (channel_psel_get(channel, &psel, config)) {
-	// 		uint32_t out_level = (pulse_cycles == 0) ? 0 : 1;
-
-	// 		if (inverted) {
-	// 			out_level ^= 1;
-	// 		}
-
-	// 		nrf_gpio_pin_write(psel, out_level);
-	// 	}
-
-	// 	data->pwm_needed &= ~BIT(channel);
-	// } else {
-	// 	data->pwm_needed |= BIT(channel);
-	// }
-
-	/* If the PWM generation is not needed for any channel (all are set
-	 * to constant inactive or active state), stop the PWM peripheral.
-	 * Otherwise, request a playback of the defined sequence so that
-	 * the PWM peripheral loads `seq_values` into its internal compare
-	 * registers and drives its outputs accordingly.
-	 */
-	// if (data->pwm_needed == 0) {
-	// 	/* Don't wait here for the peripheral to actually stop. Instead,
-	// 	 * ensure it is stopped before starting the next playback.
-	// 	 */
-	// 	nrfx_pwm_stop(&config->pwm, false);
-	// 	data->stop_requested = true;
-	// } else {
-	// 	if (data->stop_requested) {
-	// 		data->stop_requested = false;
-
-	// 		/* After a stop is requested, the PWM peripheral stops
-	// 		 * pulse generation at the end of the current period,
-	// 		 * and till that moment, it ignores any start requests,
-	// 		 * so ensure here that it is stopped.
-	// 		 */
-	// 		while (!nrfx_pwm_is_stopped(&config->pwm)) {
-	// 		}
-	// 	}
-
-	// 	/* It is sufficient to play the sequence once without looping.
-	// 	 * The PWM generation will continue with the loaded values
-	// 	 * until another playback is requested (new values will be
-	// 	 * loaded then) or the PWM peripheral is stopped.
-	// 	 */
-	// 	nrfx_pwm_simple_playback(&config->pwm, &config->seq, 1, 0);
-	// }
 
 	nrfx_pwm_simple_playback(&config->pwm, &data->seq, 1, 0);
 
@@ -436,7 +277,6 @@ static int drv_ir_transmit_sequence(const struct device *dev)
 #define TARGET_TEMPERATURE 22
 int drv_ir_send_on(const struct device *dev)
 {
-	// const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
 
 	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
@@ -457,14 +297,10 @@ int drv_ir_send_on(const struct device *dev)
 	LOG_INF("Frame: %08x", data->frame.content);
 	LOG_INF("Extended frame: %08x", data->ext_frame.content);
 
-	// config->seq.length = drv_ir_encode_frame(
 	data->seq.length = drv_ir_encode_frame(
 		dev, &data->frame, &data->ext_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
-
-	// config->seq.length = length;
-
 	LOG_INF("Transmission ready");
 
 	drv_ir_transmit_sequence(dev);
@@ -474,196 +310,11 @@ int drv_ir_send_on(const struct device *dev)
 	return 0;
 }
 
-// static uint16_t nec_repeat_symbol_encoder(void)
-// {
-//     uint16_t *seq;
-
-//     seq = &seq_pwm_values[0];
-
-//     memcpy(seq, NEC_REPEAT, sizeof(NEC_REPEAT));
-//     seq += ARRAY_SIZE(NEC_REPEAT);
-
-//     // Set remaining values in PWM table to space
-//     for (int i = 0; i < (ARRAY_SIZE(seq_pwm_values) - ARRAY_SIZE(NEC_REPEAT)); ++i)
-//     {
-//         seq[i] = NEC_SPACE_SYMBOL;
-//     }
-
-//     return (uint16_t)(seq - seq_pwm_values);
-// }
-
-// static void pwm_handler(nrfx_pwm_evt_type_t event_type, void * p_context)
-// // {
-// //     nrfx_pwm_t * inst = p_context;
-// //     static uint32_t curr_loop = 1;
-
-// //     NRFX_LOG_INFO("Loops: %u / %lu", curr_loop, NUM_OF_LOOPS);
-
-// //     if (curr_loop == NUM_OF_LOOPS)
-// //     {
-// //         NRFX_LOG_INFO("PWM finished");
-// //         nrfx_pwm_uninit(inst);
-// //     }
-// //     curr_loop++;
-// // }
-
-// // static void pwm_handler(nrf_drv_pwm_evt_type_t event)
-// {
-//     // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_PWM_INT);
-
-// 	if (((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1)) && (ir_symbol == NULL))
-// 	{
-// 		nrf_drv_pwm_stop(&pwm, true); // Stop during repetition gap.
-// 		// acknowledge_handler(NULL);    // Acknowledge end.
-// 		pwm_active = false;
-
-// 		// DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
-// 	}
-// 	else if ((event == NRF_DRV_PWM_EVT_END_SEQ0) || (event == NRF_DRV_PWM_EVT_END_SEQ1))
-// 	{
-// 		uint16_t seq_len;
-
-// 		seq_len = nec_repeat_symbol_encoder();
-// 		APP_ERROR_CHECK_BOOL(seq_len > 0 && seq_len < MAX_SEQ_SIZE);
-// 	}
-
-// 	if (event == NRF_DRV_PWM_EVT_FINISHED)
-// 	{
-// 		// if (ir_symbol == NULL)
-// 		// {
-// 	        //     // Acknowledge end.
-// 	        //     // acknowledge_handler(NULL);
-
-// 	        //     // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
-// 		// }
-// 		// else
-// 		// {
-// 		// 	__NOP();
-// 		// }
-
-// 		pwm_active = false;
-// 	}
-// }
-
-// static nrfx_err_t drv_ir_send_symbol(const sr3_ir_symbol_t *p_ir_symbol)
-// {
-// 	bool callback_flag = false;
-// 	uint16_t seq_length;
-
-// 	if (enabled_flag != true)
-// 	{
-// 		return NRF_ERROR_INVALID_STATE;
-// 	}
-
-// 	CRITICAL_REGION_ENTER();
-// 	ir_symbol = p_ir_symbol;
-// 	if ((ir_symbol == NULL) && !pwm_active)
-// 	{
-// 		callback_flag = true;
-// 	}
-// 	CRITICAL_REGION_EXIT();
-
-// 	if (callback_flag)
-// 	{
-//         // Acknowledge of prematurely ended sequence - it won't be acknowledge by handler.
-//         // acknowledge_handler(NULL);
-
-//         // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_EACK);
-// 	}
-// 	else if (ir_symbol)
-// 	{
-// 		seq_length = frame_encoder(ir_symbol);
-
-// 		if (seq_length > 0)
-// 		{
-// 			seq.values.p_common   = seq_pwm_values;
-// 			seq.length            = seq_length;
-// 			seq.repeats           = NEC_SYMBOL_REPEATS;
-// 			seq.end_delay         = 0;
-// 		}
-// 		else
-// 		{
-// 			return NRFX_ERROR_NOT_SUPPORTED;
-// 		}
-
-// 		pwm_active = true;
-//         // nrf_drv_pwm_simple_playback(&pwm, &seq, NEC_REPETION_MAX,
-//         //                             NRF_DRV_PWM_FLAG_SIGNAL_END_SEQ0 | NRF_DRV_PWM_FLAG_SIGNAL_END_SEQ1);
-
-// 		nrfx_pwm_simple_playback(&pwm, &seq, 1, NRFX_PWM_FLAG_SIGNAL_END_SEQ0);
-
-//         // acknowledge_handler(ir_symbol);
-//         // DBG_PIN_PULSE(CONFIG_IO_DBG_IR_TX_SACK);
-// 	}
-
-// 	return NRFX_SUCCESS;
-// }
-
-
-// nrfx_err_t drv_ir_enable(void)
-// {
-//     ASSERT(enabled_flag == false);
-
-//     enabled_flag = true;
-//     nrf_pwm_enable(pwm.p_registers);
-
-//     return NRFX_SUCCESS;
-// }
-
-// nrfx_err_t drv_ir_disable(void)
-// {
-//     ASSERT(enabled_flag == true);
-
-//     nrf_pwm_disable(pwm.p_registers);
-//     enabled_flag = false;
-
-//     return NRFX_SUCCESS;
-// }
-
 static int drv_ir_init(const struct device *dev)
 {
-	// nrfx_err_t status;
-
 	const struct pwm_nrfx_config *config = dev->config;
-	// struct pwm_nrfx_data *data = dev->data;
-
-	// static const nrf_drv_pwm_config_t config =
-	// {
-	// 	.output_pins =
-	// 	{
-	// 		IS_IO_VALID(CONFIG_IO_IR_TX_LED) ? CONFIG_IO_IR_TX_LED : NRF_DRV_PWM_PIN_NOT_USED,
-	// 		NRF_DRV_PWM_PIN_NOT_USED,
-	// 		NRF_DRV_PWM_PIN_NOT_USED,
-	// 		NRF_DRV_PWM_PIN_NOT_USED,
-	// 	},
-
-	// 	.irq_priority   = AIRQ_PRIORITY_LOW,
-	// 	.base_clock     = NRF_PWM_CLK_16MHz,
-	// 	.count_mode     = NRF_PWM_MODE_UP,
-	// 	.top_value      = NEC_TOP_VALUE,
-	// 	.load_mode      = NRF_PWM_LOAD_COMMON,
-	// 	.step_mode      = NRF_PWM_STEP_AUTO
-	// };
-
-    // if (acknowledge_handler == NULL)
-    // {
-    //     return NRF_ERROR_INVALID_PARAM;
-    // }
-
-	// acknowledge_handler   = acknowledge_handler;
-	// enabled_flag          = false;
-	// pwm_active            = false;
-	// ir_symbol             = NULL;
-
-    // status = nrf_drv_pwm_init(&pwm, &config, pwm_handler);
-    // if (status == NRFX_SUCCESS)
-    // {
-    //     nrf_pwm_disable(pwm.p_registers);
-    // }
 
 	LOG_INF("Init");
-
-
 
 #ifdef CONFIG_PINCTRL
 	int ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
@@ -671,52 +322,7 @@ static int drv_ir_init(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-
-	// data->initially_inverted = 0;
-	// for (size_t i = 0; i < ARRAY_SIZE(data->seq_values); i++) {
-	// 	uint32_t psel;
-
-	// 	if (channel_psel_get(i, &psel, config)) {
-	// 		/* Mark channels as inverted according to what initial
-	// 		 * state of their outputs has been set by pinctrl (high
-	// 		 * idle state means that the channel is inverted).
-	// 		 */
-	// 		data->initially_inverted |=
-	// 			nrf_gpio_pin_out_read(psel) ? BIT(i) : 0;
-	// 	}
-	// }
 #endif
-
-	// for (size_t i = 0; i < ARRAY_SIZE(data->seq_values); i++) {
-	// 	bool inverted = data->initially_inverted & BIT(i);
-
-	// 	data->seq_values[i] = PWM_NRFX_CH_VALUE(0, inverted);
-	// }
-
-	
-
-
-
-
-
-
-
-// 	nrfx_pwm_t pwm_instance = NRFX_PWM_INSTANCE(PWM_INST_IDX);
-// 	nrfx_pwm_config_t config = NRFX_PWM_DEFAULT_CONFIG(LED1_PIN, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED);
-// 	status = nrfx_pwm_init(&pwm_instance, &config, pwm_handler, &pwm_instance);
-// 	NRFX_ASSERT(status == NRFX_SUCCESS);
-
-// #if defined(__ZEPHYR__)
-//     #define PWM_INST         NRFX_CONCAT_2(NRF_PWM, PWM_INST_IDX)
-//     #define PWM_INST_HANDLER NRFX_CONCAT_3(nrfx_pwm_, PWM_INST_IDX, _irq_handler)
-// 	IRQ_DIRECT_CONNECT(NRFX_IRQ_NUMBER_GET(PWM_INST), IRQ_PRIO_LOWEST, PWM_INST_HANDLER, 0);
-// #endif
-
-// 	return status;
-
-
-
-
 
 	nrfx_err_t result = nrfx_pwm_init(&config->pwm,
 					  &config->initial_config,
