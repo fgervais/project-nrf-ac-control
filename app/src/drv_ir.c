@@ -53,6 +53,7 @@ LOG_MODULE_REGISTER(drv_ir, LOG_LEVEL_DBG);
 #define TRAILING_SEQUENCE_BITS  8
 #define FRAME_BITS              28
 #define EXT_FRAME_BITS          32
+#define IFEEL_FRAME_BITS        8
 
 #define NEC_TOP_VALUE           421      // 38kHz carrier 26.3125 usec for 16MHz PWM_CLK
 #define NEC_SYMBOL_REPEATS      21       // repeat each symbol 21 times - 21*26.3125=552.5625 us
@@ -69,6 +70,15 @@ const uint16_t NEC_START[] =
 	  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
 	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
 	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL};
+
+// 6 ms high, 3 ms low
+const uint16_t IFEEL_START[] =
+	{ NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
+	  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
+	  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL, \
+	  NEC_MARK_SYMBOL,  NEC_MARK_SYMBOL,					 \
+	  NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL, NEC_SPACE_SYMBOL,\
+	  NEC_SPACE_SYMBOL };
 
 // 1010 0101
 const uint16_t TRAILING_SEQUENCE[] =
@@ -169,6 +179,14 @@ union drv_ir_ext_frame
 	};
 };
 
+union drv_ir_ifeel_frame
+{
+	uint32_t content;
+	struct {
+		uint32_t temperature 	: 8;
+	};
+};
+
 struct pwm_nrfx_config {
 	nrfx_pwm_t pwm;
 	nrfx_pwm_config_t initial_config;
@@ -179,9 +197,10 @@ struct pwm_nrfx_config {
 
 struct pwm_nrfx_data {
 	uint16_t seq_values[MAX_SEQ_SIZE];
-	nrf_pwm_sequence_t	seq;
-	union drv_ir_frame	frame;
-	union drv_ir_ext_frame	ext_frame;
+	nrf_pwm_sequence_t	 seq;
+	union drv_ir_frame	 frame;
+	union drv_ir_ext_frame	 ext_frame;
+	union drv_ir_ifeel_frame ifeel_frame;
 };
 
 
@@ -189,6 +208,12 @@ static void insert_start_symbol(uint16_t **seq)
 {
 	memcpy(*seq, NEC_START, sizeof(NEC_START));
 	*seq += ARRAY_SIZE(NEC_START);
+}
+
+static void insert_ifeel_start_symbol(uint16_t **seq)
+{
+	memcpy(*seq, IFEEL_START, sizeof(IFEEL_START));
+	*seq += ARRAY_SIZE(IFEEL_START);
 }
 
 static void insert_trailing_sequence(uint16_t **seq)
@@ -264,6 +289,29 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 	return (uint16_t)(seq - data->seq_values);
 }
 
+static uint16_t drv_ir_encode_ifeel_frame(const struct device *dev,
+					  const union drv_ir_ifeel_frame *ifeel_frame,
+					  const uint16_t *buf)
+{
+	uint16_t *seq;
+	int i;
+
+	struct pwm_nrfx_data *data = dev->data;
+
+	seq = data->seq_values;
+	insert_ifeel_start_symbol(&seq);
+
+	drv_ir_binary_to_symbol(data->ifeel_frame.content, IFEEL_FRAME_BITS, &seq);
+	insert_trailing_sequence(&seq);
+
+	for (i = 0; i < NEC_GUARD_ZEROS; i++)
+	{
+		insert_zero_symbol(&seq);
+	}
+
+	return (uint16_t)(seq - data->seq_values);
+}
+
 static int drv_ir_transmit_sequence(const struct device *dev)
 {
 	const struct pwm_nrfx_config *config = dev->config;
@@ -299,6 +347,29 @@ int drv_ir_send_on(const struct device *dev)
 
 	data->seq.length = drv_ir_encode_frame(
 		dev, &data->frame, &data->ext_frame, data->seq_values);
+
+	LOG_INF("Frame length: 0x%x", data->seq.length);
+	LOG_INF("Transmission ready");
+
+	drv_ir_transmit_sequence(dev);
+
+	LOG_DBG("Transmission requested");
+
+	return 0;
+}
+
+int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
+{
+	struct pwm_nrfx_data *data = dev->data;
+
+	LOG_INF("Current temperature: %d", current_temp);
+
+	data->ifeel_frame.temperature = current_temp;
+
+	LOG_INF("Ifeel frame: %08x", data->ifeel_frame.content);
+
+	data->seq.length = drv_ir_encode_ifeel_frame(
+		dev, &data->ifeel_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
