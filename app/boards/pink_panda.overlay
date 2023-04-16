@@ -48,15 +48,15 @@
 
 	i2c0_default: i2c0_default {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 26)>,
-				<NRF_PSEL(TWIM_SCL, 0, 27)>;
+			psels = <NRF_PSEL(TWIM_SDA, 1, 10)>,
+				<NRF_PSEL(TWIM_SCL, 1, 14)>;
 		};
 	};
 
 	i2c0_sleep: i2c0_sleep {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 26)>,
-				<NRF_PSEL(TWIM_SCL, 0, 27)>;
+			psels = <NRF_PSEL(TWIM_SDA, 1, 10)>,
+				<NRF_PSEL(TWIM_SCL, 1, 14)>;
 			low-power-enable;
 		};
 	};
@@ -134,7 +134,18 @@
 // 	status = "disabled";
 // };
 &i2c0 {
-	status = "disabled";
+	ti_tmp116: ti_tmp116@48 {
+		compatible = "ti,tmp116";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		eeprom: ti_tmp116_eeprom@0 {
+			compatible = "ti,tmp116-eeprom";
+			reg = <0x0>;
+			read-only;
+		};
+	};
 };
 &spi0 {
 	status = "disabled";
