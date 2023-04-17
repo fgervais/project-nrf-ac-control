@@ -165,6 +165,7 @@
 &usbd {
 	status = "disabled";
 };
-&gpio1 {
-	status = "disabled";
-};
+// Waiting from https://github.com/zephyrproject-rtos/zephyr/pull/55955
+// &gpio1 {
+// 	status = "disabled";
+// };
