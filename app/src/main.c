@@ -80,6 +80,8 @@ void main(void)
 		LOG_INF("🌡️ temp is %g°C", current_temp);
 
 		drv_ir_send_on(pwm0);
+		k_sleep(K_SECONDS(1));
+		drv_ir_send_ifeel(pwm0, current_temp);
 		k_sleep(K_SECONDS(5));
 	}
 
