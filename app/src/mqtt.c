@@ -372,19 +372,20 @@ static int get_mqtt_broker_addrinfo(void)
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
 
-		rc = zsock_getaddrinfo(CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME, "8883",
+		rc = zsock_getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
+				       CONFIG_APP_MQTT_SERVER_PORT,
 				       &hints, &haddr);
 		if (rc == 0) {
 			LOG_INF("DNS resolved for %s:%d",
-			CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME,
-			CONFIG_SAMPLE_CLOUD_AZURE_SERVER_PORT);
+			CONFIG_APP_MQTT_SERVER_HOSTNAME,
+			CONFIG_APP_MQTT_SERVER_PORT);
 
 			return 0;
 		}
 
 		LOG_ERR("DNS not resolved for %s:%d, retrying",
-			CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME,
-			CONFIG_SAMPLE_CLOUD_AZURE_SERVER_PORT);
+			CONFIG_APP_MQTT_SERVER_HOSTNAME,
+			CONFIG_APP_MQTT_SERVER_PORT);
 	}
 
 	return rc;
