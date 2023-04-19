@@ -103,6 +103,9 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_FLOAT),
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
+
+
+static int get_device_id_string(char *id_string, size_t id_string_len)
 {
 	uint8_t dev_id[DEVICE_ID_BYTE_SIZE];
 	ssize_t length;
@@ -118,10 +121,7 @@ static const struct json_obj_descr config_descr[] = {
 		return length;
 	}
 
-	LOG_INF("Length: %zd\n", length);
-	LOG_INF("ID: 0x");
-
-	memcpy(device_id, dev_id, DEVICE_ID_BYTE_SIZE);
+	bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len)
 
 	return 0;
 }
@@ -143,6 +143,20 @@ int ha_send_current_temp(double current_temp)
 
 int ha_start(mode_change_callback, temperature_setpoint_change_callback)
 {
+	int ret;
+
+	ret = get_device_id_string(
+		ac_config.dev.identifiers,
+		ARRAY_SIZE(ac_config.dev.identifiers));
+	if (ret < 0) {
+		LOG_ERR("Could not get device ID");
+		return ret;
+	}
+
+	LOG_INF("Device ID: 0x%s", ac_config.dev.identifiers);
+
 	ha_send_discovery()
 	ha_subscribe_to_topics();
+
+	return 0;
 }
