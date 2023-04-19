@@ -1,37 +1,27 @@
-/*
- * Copyright (c) 2019 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(mqtt_azure, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/mqtt.h>
 
-#include <zephyr/sys/printk.h>
-#include <zephyr/random/rand32.h>
+// #include <zephyr/random/rand32.h>
 #include <string.h>
 #include <errno.h>
 
-#include "config.h"
-#include "test_certs.h"
+
+#define MQTT_BUFFER_SIZE	1024
+
 
 /* Buffers for MQTT client. */
-static uint8_t rx_buffer[APP_MQTT_BUFFER_SIZE];
-static uint8_t tx_buffer[APP_MQTT_BUFFER_SIZE];
+static uint8_t rx_buffer[MQTT_BUFFER_SIZE];
+static uint8_t tx_buffer[MQTT_BUFFER_SIZE];
 
 /* The mqtt client struct */
 static struct mqtt_client client_ctx;
 
 /* MQTT Broker details. */
 static struct sockaddr_storage broker;
-
-#if defined(CONFIG_SOCKS)
-static struct sockaddr socks5_proxy;
-#endif
 
 /* Socket Poll */
 static struct zsock_pollfd fds[1];
@@ -40,14 +30,6 @@ static int nfds;
 static bool mqtt_connected;
 
 static struct k_work_delayable pub_message;
-#if defined(CONFIG_NET_DHCPV4)
-static struct k_work_delayable check_network_conn;
-
-/* Network Management events */
-#define L4_EVENT_MASK (NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
-
-static struct net_mgmt_event_callback l4_mgmt_cb;
-#endif
 
 #if defined(CONFIG_DNS_RESOLVER)
 static struct zsock_addrinfo hints;
@@ -57,12 +39,12 @@ static struct zsock_addrinfo *haddr;
 static K_SEM_DEFINE(mqtt_start, 0, 1);
 
 /* Application TLS configuration details */
-#define TLS_SNI_HOSTNAME CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME
-#define APP_CA_CERT_TAG 1
+// #define TLS_SNI_HOSTNAME CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME
+// #define APP_CA_CERT_TAG 1
 
-static sec_tag_t m_sec_tags[] = {
-	APP_CA_CERT_TAG,
-};
+// static sec_tag_t m_sec_tags[] = {
+// 	APP_CA_CERT_TAG,
+// };
 
 static uint8_t topic[] = "devices/" MQTT_CLIENTID "/messages/devicebound/#";
 static struct mqtt_topic subs_topic;
@@ -71,25 +53,25 @@ static struct mqtt_subscription_list subs_list;
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
 
-static int tls_init(void)
-{
-	int err;
+// static int tls_init(void)
+// {
+// 	int err;
 
-	err = tls_credential_add(APP_CA_CERT_TAG, TLS_CREDENTIAL_CA_CERTIFICATE,
-				 ca_certificate, sizeof(ca_certificate));
-	if (err < 0) {
-		LOG_ERR("Failed to register public certificate: %d", err);
-		return err;
-	}
+// 	err = tls_credential_add(APP_CA_CERT_TAG, TLS_CREDENTIAL_CA_CERTIFICATE,
+// 				 ca_certificate, sizeof(ca_certificate));
+// 	if (err < 0) {
+// 		LOG_ERR("Failed to register public certificate: %d", err);
+// 		return err;
+// 	}
 
-	return err;
-}
+// 	return err;
+// }
 
 static void prepare_fds(struct mqtt_client *client)
 {
-	if (client->transport.type == MQTT_TRANSPORT_SECURE) {
-		fds[0].fd = client->transport.tls.sock;
-	}
+	// if (client->transport.type == MQTT_TRANSPORT_SECURE) {
+	// 	fds[0].fd = client->transport.tls.sock;
+	// }
 
 	fds[0].events = ZSOCK_POLLIN;
 	nfds = 1;
@@ -122,21 +104,13 @@ static void broker_init(void)
 	struct sockaddr_in *broker4 = (struct sockaddr_in *)&broker;
 
 	broker4->sin_family = AF_INET;
-	broker4->sin_port = htons(SERVER_PORT);
+	broker4->sin_port = htons(CONFIG_APP_MQTT_SERVER_PORT);
 
 #if defined(CONFIG_DNS_RESOLVER)
 	net_ipaddr_copy(&broker4->sin_addr,
 			&net_sin(haddr->ai_addr)->sin_addr);
 #else
-	zsock_inet_pton(AF_INET, SERVER_ADDR, &broker4->sin_addr);
-#endif
-
-#if defined(CONFIG_SOCKS)
-	struct sockaddr_in *proxy4 = (struct sockaddr_in *)&socks5_proxy;
-
-	proxy4->sin_family = AF_INET;
-	proxy4->sin_port = htons(SOCKS5_PROXY_PORT);
-	zsock_inet_pton(AF_INET, SOCKS5_PROXY_ADDR, &proxy4->sin_addr);
+	zsock_inet_pton(AF_INET, CONFIG_APP_MQTT_SERVER_ADDR, &broker4->sin_addr);
 #endif
 }
 
@@ -154,18 +128,18 @@ static void client_init(struct mqtt_client *client)
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
 
-	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
-	client->client_id.size = strlen(MQTT_CLIENTID);
+	// client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
+	// client->client_id.size = strlen(MQTT_CLIENTID);
 
-	password.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD;
-	password.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD);
+	// password.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD;
+	// password.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD);
 
-	client->password = &password;
+	// client->password = &password;
 
-	username.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_USERNAME;
-	username.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_USERNAME);
+	// username.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_USERNAME;
+	// username.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_USERNAME);
 
-	client->user_name = &username;
+	// client->user_name = &username;
 
 	client->protocol_version = MQTT_VERSION_3_1_1;
 
@@ -178,20 +152,20 @@ static void client_init(struct mqtt_client *client)
 	/* MQTT transport configuration */
 	client->transport.type = MQTT_TRANSPORT_SECURE;
 
-	tls_config = &client->transport.tls.config;
+	// tls_config = &client->transport.tls.config;
 
-	tls_config->peer_verify = TLS_PEER_VERIFY_REQUIRED;
-	tls_config->cipher_list = NULL;
-	tls_config->sec_tag_list = m_sec_tags;
-	tls_config->sec_tag_count = ARRAY_SIZE(m_sec_tags);
-	tls_config->hostname = TLS_SNI_HOSTNAME;
+	// tls_config->peer_verify = TLS_PEER_VERIFY_REQUIRED;
+	// tls_config->cipher_list = NULL;
+	// tls_config->sec_tag_list = m_sec_tags;
+	// tls_config->sec_tag_count = ARRAY_SIZE(m_sec_tags);
+	// tls_config->hostname = TLS_SNI_HOSTNAME;
 
-#if defined(CONFIG_SOCKS)
-	mqtt_client_set_proxy(client, &socks5_proxy,
-			      socks5_proxy.sa_family == AF_INET ?
-			      sizeof(struct sockaddr_in) :
-			      sizeof(struct sockaddr_in6));
-#endif
+// #if defined(CONFIG_SOCKS)
+// 	mqtt_client_set_proxy(client, &socks5_proxy,
+// 			      socks5_proxy.sa_family == AF_INET ?
+// 			      sizeof(struct sockaddr_in) :
+// 			      sizeof(struct sockaddr_in6));
+// #endif
 }
 
 static void mqtt_event_handler(struct mqtt_client *const client,
@@ -421,25 +395,19 @@ static void connect_to_cloud_and_publish(void)
 {
 	int rc = -EINVAL;
 
-#if defined(CONFIG_NET_DHCPV4)
-	while (true) {
-		k_sem_take(&mqtt_start, K_FOREVER);
-#endif
 #if defined(CONFIG_DNS_RESOLVER)
-		rc = get_mqtt_broker_addrinfo();
-		if (rc) {
-			return;
-		}
-#endif
-		rc = try_to_connect(&client_ctx);
-		if (rc) {
-			return;
-		}
-
-		poll_mqtt();
-#if defined(CONFIG_NET_DHCPV4)
+	rc = get_mqtt_broker_addrinfo();
+	if (rc) {
+		return;
 	}
 #endif
+
+	rc = try_to_connect(&client_ctx);
+	if (rc) {
+		return;
+	}
+
+	poll_mqtt();
 }
 
 /* DHCP tries to renew the address after interface is down and up.
@@ -449,64 +417,64 @@ static void connect_to_cloud_and_publish(void)
  * address and attempts for new request. In this case we can rely
  * on IPV4_ADDR_ADD event.
  */
-#if defined(CONFIG_NET_DHCPV4)
-static void check_network_connection(struct k_work *work)
-{
-	struct net_if *iface;
+// #if defined(CONFIG_NET_DHCPV4)
+// static void check_network_connection(struct k_work *work)
+// {
+// 	struct net_if *iface;
 
-	if (mqtt_connected) {
-		return;
-	}
+// 	if (mqtt_connected) {
+// 		return;
+// 	}
 
-	iface = net_if_get_default();
-	if (!iface) {
-		goto end;
-	}
+// 	iface = net_if_get_default();
+// 	if (!iface) {
+// 		goto end;
+// 	}
 
-	if (iface->config.dhcpv4.state == NET_DHCPV4_BOUND) {
-		k_sem_give(&mqtt_start);
-		return;
-	}
+// 	if (iface->config.dhcpv4.state == NET_DHCPV4_BOUND) {
+// 		k_sem_give(&mqtt_start);
+// 		return;
+// 	}
 
-	LOG_INF("waiting for DHCP to acquire addr");
+// 	LOG_INF("waiting for DHCP to acquire addr");
 
-end:
-	k_work_reschedule(&check_network_conn, K_SECONDS(3));
-}
-#endif
+// end:
+// 	k_work_reschedule(&check_network_conn, K_SECONDS(3));
+// }
+// #endif
 
-#if defined(CONFIG_NET_DHCPV4)
-static void abort_mqtt_connection(void)
-{
-	if (mqtt_connected) {
-		mqtt_connected = false;
-		mqtt_abort(&client_ctx);
-		k_work_cancel_delayable(&pub_message);
-	}
-}
+// #if defined(CONFIG_NET_DHCPV4)
+// static void abort_mqtt_connection(void)
+// {
+// 	if (mqtt_connected) {
+// 		mqtt_connected = false;
+// 		mqtt_abort(&client_ctx);
+// 		k_work_cancel_delayable(&pub_message);
+// 	}
+// }
 
-static void l4_event_handler(struct net_mgmt_event_callback *cb,
-			     uint32_t mgmt_event, struct net_if *iface)
-{
-	if ((mgmt_event & L4_EVENT_MASK) != mgmt_event) {
-		return;
-	}
+// static void l4_event_handler(struct net_mgmt_event_callback *cb,
+// 			     uint32_t mgmt_event, struct net_if *iface)
+// {
+// 	if ((mgmt_event & L4_EVENT_MASK) != mgmt_event) {
+// 		return;
+// 	}
 
-	if (mgmt_event == NET_EVENT_L4_CONNECTED) {
-		/* Wait for DHCP to be back in BOUND state */
-		k_work_reschedule(&check_network_conn, K_SECONDS(3));
+// 	if (mgmt_event == NET_EVENT_L4_CONNECTED) {
+// 		/* Wait for DHCP to be back in BOUND state */
+// 		k_work_reschedule(&check_network_conn, K_SECONDS(3));
 
-		return;
-	}
+// 		return;
+// 	}
 
-	if (mgmt_event == NET_EVENT_L4_DISCONNECTED) {
-		abort_mqtt_connection();
-		k_work_cancel_delayable(&check_network_conn);
+// 	if (mgmt_event == NET_EVENT_L4_DISCONNECTED) {
+// 		abort_mqtt_connection();
+// 		k_work_cancel_delayable(&check_network_conn);
 
-		return;
-	}
-}
-#endif
+// 		return;
+// 	}
+// }
+// #endif
 
 int main(void)
 {
@@ -514,20 +482,20 @@ int main(void)
 
 	LOG_DBG("Waiting for network to setup...");
 
-	rc = tls_init();
-	if (rc) {
-		return 0;
-	}
+	// rc = tls_init();
+	// if (rc) {
+	// 	return 0;
+	// }
 
 	k_work_init_delayable(&pub_message, publish_timeout);
 
-#if defined(CONFIG_NET_DHCPV4)
-	k_work_init_delayable(&check_network_conn, check_network_connection);
+// #if defined(CONFIG_NET_DHCPV4)
+// 	k_work_init_delayable(&check_network_conn, check_network_connection);
 
-	net_mgmt_init_event_callback(&l4_mgmt_cb, l4_event_handler,
-				     L4_EVENT_MASK);
-	net_mgmt_add_event_callback(&l4_mgmt_cb);
-#endif
+// 	net_mgmt_init_event_callback(&l4_mgmt_cb, l4_event_handler,
+// 				     L4_EVENT_MASK);
+// 	net_mgmt_add_event_callback(&l4_mgmt_cb);
+// #endif
 
 	connect_to_cloud_and_publish();
 	return 0;

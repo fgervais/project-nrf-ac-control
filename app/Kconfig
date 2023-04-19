@@ -7,6 +7,11 @@ config APP_MQTT_SERVER_HOSTNAME
 	help
 	  Hostname of MQTT server.
 
+config APP_MQTT_SERVER_ADDR
+	string "MQTT server address"
+	help
+	  MQTT server address.
+
 config APP_MQTT_SERVER_PORT
 	int "MQTT server port number"
 	default 1883
