@@ -1,0 +1,16 @@
+# Private config options
+
+mainmenu "AC Control Application"
+
+config APP_MQTT_SERVER_HOSTNAME
+	string "MQTT server hostname"
+	help
+	  Hostname of MQTT server.
+
+config APP_MQTT_SERVER_PORT
+	int "MQTT server port number"
+	default 1883
+	help
+	  MQTT server port number.
+
+source "Kconfig.zephyr"
