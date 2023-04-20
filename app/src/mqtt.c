@@ -2,15 +2,16 @@
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 #include <zephyr/kernel.h>
-#include <zephyr/net/socket.h>
 #include <zephyr/net/mqtt.h>
+#include <zephyr/net/socket.h>
+#include <zephyr/random/rand32.h>
 
-// #include <zephyr/random/rand32.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
 
 
 #define MQTT_BUFFER_SIZE	1024
+#define STR(x)			#x
 
 
 /* Buffers for MQTT client. */
@@ -29,7 +30,7 @@ static int nfds;
 
 static bool mqtt_connected;
 
-static struct k_work_delayable pub_message;
+// static struct k_work_delayable pub_message;
 
 #if defined(CONFIG_DNS_RESOLVER)
 static struct zsock_addrinfo hints;
@@ -46,7 +47,7 @@ static K_SEM_DEFINE(mqtt_start, 0, 1);
 // 	APP_CA_CERT_TAG,
 // };
 
-static uint8_t topic[] = "devices/" MQTT_CLIENTID "/messages/devicebound/#";
+// static uint8_t topic[] = "devices/" MQTT_CLIENTID "/messages/devicebound/#";
 static struct mqtt_topic subs_topic;
 static struct mqtt_subscription_list subs_list;
 
@@ -116,9 +117,9 @@ static void broker_init(void)
 
 static void client_init(struct mqtt_client *client)
 {
-	static struct mqtt_utf8 password;
-	static struct mqtt_utf8 username;
-	struct mqtt_sec_config *tls_config;
+	// static struct mqtt_utf8 password;
+	// static struct mqtt_utf8 username;
+	// struct mqtt_sec_config *tls_config;
 
 	mqtt_client_init(client);
 
@@ -150,7 +151,7 @@ static void client_init(struct mqtt_client *client)
 	client->tx_buf_size = sizeof(tx_buffer);
 
 	/* MQTT transport configuration */
-	client->transport.type = MQTT_TRANSPORT_SECURE;
+	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
 
 	// tls_config = &client->transport.tls.config;
 
@@ -243,7 +244,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 	}
 }
 
-static void subscribe(struct mqtt_client *client)
+static void subscribe(struct mqtt_client *client, const char *topic)
 {
 	int err;
 
@@ -260,66 +261,69 @@ static void subscribe(struct mqtt_client *client)
 	}
 }
 
-static int publish(struct mqtt_client *client, enum mqtt_qos qos)
-{
-	char payload[] = "{id=123}";
-	char topic[] = "devices/" MQTT_CLIENTID "/messages/events/";
-	uint8_t len = strlen(topic);
-	struct mqtt_publish_param param;
+// static int publish(struct mqtt_client *client, enum mqtt_qos qos)
+// {
+// 	char payload[] = "{id=123}";
+// 	char topic[] = "devices/" MQTT_CLIENTID "/messages/events/";
+// 	uint8_t len = strlen(topic);
+// 	struct mqtt_publish_param param;
 
-	param.message.topic.qos = qos;
-	param.message.topic.topic.utf8 = (uint8_t *)topic;
-	param.message.topic.topic.size = len;
-	param.message.payload.data = payload;
-	param.message.payload.len = strlen(payload);
-	param.message_id = sys_rand32_get();
-	param.dup_flag = 0U;
-	param.retain_flag = 0U;
+// 	param.message.topic.qos = qos;
+// 	param.message.topic.topic.utf8 = (uint8_t *)topic;
+// 	param.message.topic.topic.size = len;
+// 	param.message.payload.data = payload;
+// 	param.message.payload.len = strlen(payload);
+// 	param.message_id = sys_rand32_get();
+// 	param.dup_flag = 0U;
+// 	param.retain_flag = 0U;
 
-	return mqtt_publish(client, &param);
-}
+// 	return mqtt_publish(client, &param);
+// }
 
-static void poll_mqtt(void)
-{
-	int rc;
+// static void poll_mqtt(void)
+// {
+// 	int rc;
 
-	while (mqtt_connected) {
-		rc = wait(SYS_FOREVER_MS);
-		if (rc > 0) {
-			mqtt_input(&client_ctx);
-		}
-	}
-}
+// 	while (mqtt_connected) {
+// 		rc = wait(SYS_FOREVER_MS);
+// 		if (rc > 0) {
+// 			mqtt_input(&client_ctx);
+// 		}
+// 	}
+// }
 
 /* Random time between 10 - 15 seconds
  * If you prefer to have this value more than CONFIG_MQTT_KEEPALIVE,
  * then keep the application connection live by calling mqtt_live()
  * in regular intervals.
  */
-static uint8_t timeout_for_publish(void)
-{
-	return (10 + sys_rand32_get() % 5);
-}
+// static uint8_t timeout_for_publish(void)
+// {
+// 	return (10 + sys_rand32_get() % 5);
+// }
 
-static void publish_timeout(struct k_work *work)
-{
-	int rc;
+// static void publish_timeout(struct k_work *work)
+// {
+// 	int rc;
 
-	if (!mqtt_connected) {
-		return;
-	}
+// 	if (!mqtt_connected) {
+// 		return;
+// 	}
 
-	rc = publish(&client_ctx, MQTT_QOS_1_AT_LEAST_ONCE);
-	if (rc) {
-		LOG_ERR("mqtt_publish ERROR");
-		goto end;
-	}
+// 	rc = publish(&client_ctx, MQTT_QOS_1_AT_LEAST_ONCE);
+// 	if (rc) {
+// 		LOG_ERR("mqtt_publish ERROR");
+// 		goto end;
+// 	}
 
-	LOG_DBG("mqtt_publish OK");
-end:
-	k_work_reschedule(&pub_message, K_SECONDS(timeout_for_publish()));
-}
+// 	LOG_DBG("mqtt_publish OK");
+// end:
+// 	k_work_reschedule(&pub_message, K_SECONDS(timeout_for_publish()));
+// }
 
+
+#define MQTT_CONNECT_TIMEOUT_MS	1000
+#define MQTT_ABORT_TIMEOUT_MS	5000
 static int try_to_connect(struct mqtt_client *client)
 {
 	uint8_t retries = 3U;
@@ -338,7 +342,7 @@ static int try_to_connect(struct mqtt_client *client)
 
 		prepare_fds(client);
 
-		rc = wait(APP_SLEEP_MSECS);
+		rc = wait(MQTT_CONNECT_TIMEOUT_MS);
 		if (rc < 0) {
 			mqtt_abort(client);
 			return rc;
@@ -347,15 +351,15 @@ static int try_to_connect(struct mqtt_client *client)
 		mqtt_input(client);
 
 		if (mqtt_connected) {
-			subscribe(client);
-			k_work_reschedule(&pub_message,
-					  K_SECONDS(timeout_for_publish()));
+			// subscribe(client);
+			// k_work_reschedule(&pub_message,
+			// 		  K_SECONDS(timeout_for_publish()));
 			return 0;
 		}
 
 		mqtt_abort(client);
 
-		wait(10 * MSEC_PER_SEC);
+		wait(MQTT_ABORT_TIMEOUT_MS);
 	}
 
 	return -EINVAL;
@@ -373,7 +377,7 @@ static int get_mqtt_broker_addrinfo(void)
 		hints.ai_protocol = 0;
 
 		rc = zsock_getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
-				       CONFIG_APP_MQTT_SERVER_PORT,
+				       STR(CONFIG_APP_MQTT_SERVER_PORT),
 				       &hints, &haddr);
 		if (rc == 0) {
 			LOG_INF("DNS resolved for %s:%d",
@@ -392,23 +396,24 @@ static int get_mqtt_broker_addrinfo(void)
 }
 #endif
 
-static void connect_to_cloud_and_publish(void)
+// static void connect_to_cloud_and_publish(void)
+static int connect_to_server(void)
 {
 	int rc = -EINVAL;
 
 #if defined(CONFIG_DNS_RESOLVER)
 	rc = get_mqtt_broker_addrinfo();
 	if (rc) {
-		return;
+		return rc;
 	}
 #endif
 
 	rc = try_to_connect(&client_ctx);
 	if (rc) {
-		return;
+		return rc;
 	}
 
-	poll_mqtt();
+	return 0;
 }
 
 /* DHCP tries to renew the address after interface is down and up.
@@ -477,27 +482,59 @@ static void connect_to_cloud_and_publish(void)
 // }
 // #endif
 
-int main(void)
+// int main(void)
+// {
+// 	int rc;
+
+// 	LOG_DBG("Waiting for network to setup...");
+
+// 	// rc = tls_init();
+// 	// if (rc) {
+// 	// 	return 0;
+// 	// }
+
+// 	// k_work_init_delayable(&pub_message, publish_timeout);
+
+// // #if defined(CONFIG_NET_DHCPV4)
+// // 	k_work_init_delayable(&check_network_conn, check_network_connection);
+
+// // 	net_mgmt_init_event_callback(&l4_mgmt_cb, l4_event_handler,
+// // 				     L4_EVENT_MASK);
+// // 	net_mgmt_add_event_callback(&l4_mgmt_cb);
+// // #endif
+
+// 	// connect_to_cloud_and_publish();
+// 	return 0;
+// }
+
+int mqtt_publish_current_temp(double current_temp)
 {
-	int rc;
-
-	LOG_DBG("Waiting for network to setup...");
-
-	// rc = tls_init();
-	// if (rc) {
-	// 	return 0;
-	// }
-
-	k_work_init_delayable(&pub_message, publish_timeout);
-
-// #if defined(CONFIG_NET_DHCPV4)
-// 	k_work_init_delayable(&check_network_conn, check_network_connection);
-
-// 	net_mgmt_init_event_callback(&l4_mgmt_cb, l4_event_handler,
-// 				     L4_EVENT_MASK);
-// 	net_mgmt_add_event_callback(&l4_mgmt_cb);
-// #endif
-
-	connect_to_cloud_and_publish();
 	return 0;
+}
+
+int mqtt_publish_discovery(char *json_config, const char *topic)
+{
+	// char payload[] = "{id=123}";
+	// char topic[] = "devices/" MQTT_CLIENTID "/messages/events/";
+	// uint8_t len = strlen(topic);
+	int ret;
+	struct mqtt_publish_param param;
+
+	param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
+	param.message.topic.topic.utf8 = (uint8_t *)topic;
+	param.message.topic.topic.size = strlen(topic);
+	param.message.payload.data = json_config;
+	param.message.payload.len = strlen(json_config);
+	param.message_id = sys_rand32_get();
+	param.dup_flag = 0U;
+	param.retain_flag = 0U;
+
+	if (!mqtt_connected) {
+		ret = connect_to_server();
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
+	return mqtt_publish(&client_ctx, &param);
 }

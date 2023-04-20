@@ -13,6 +13,7 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #include "drv_ir.h"
+#include "ha.h"
 
 
 #define SLEEP_TIME_MS   10
@@ -50,7 +51,6 @@ void main(void)
 	int ret;
 	double current_temp;
 
-	const struct device *cons = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 	const struct device *const tmp117 = DEVICE_DT_GET(TMP116_NODE);
 
@@ -73,7 +73,7 @@ void main(void)
 	__ASSERT(device_is_ready(tmp117), "TMP117 device not ready");
 	LOG_INF("Device %s - %p is ready", tmp117->name, tmp117);
 
-	while(1) {
+	// while(1) {
 		LOG_INF("────────────────────────────────────────");
 		current_temp = get_current_temperature(tmp117);
 
@@ -83,16 +83,13 @@ void main(void)
 		k_sleep(K_SECONDS(1));
 		drv_ir_send_ifeel(pwm0, current_temp);
 		k_sleep(K_SECONDS(5));
-	}
+	// }
+
+	ha_start();
 
 	LOG_INF("****************************************");
 	LOG_INF("MAIN DONE");
 	LOG_INF("****************************************");
-
-	k_sleep(K_SECONDS(3));
-	// pm_device_action_run(cons, PM_DEVICE_ACTION_SUSPEND);
-
-	LOG_INF("PM_DEVICE_ACTION_SUSPEND");
 }
 
 static bool event_handler(const struct app_event_header *eh)

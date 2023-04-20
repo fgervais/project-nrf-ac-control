@@ -29,12 +29,16 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #include <zephyr/data/json.h>
 #include <zephyr/drivers/hwinfo.h>
 
+#include <stdio.h>
+
+#include "mqtt.h"
+
 
 #define DEVICE_ID_BYTE_SIZE	8
 
 
 struct device {
-	const char identifiers[2 * DEVICE_ID_BYTE_SIZE + 1];
+	char identifiers[DEVICE_ID_BYTE_SIZE*2 + 1];
 	const char *name;
 	const char *sw_version;
 	const char *hw_version;
@@ -64,7 +68,7 @@ static struct config ac_config = {
 	.initial = 22,
 	.min_temp = 16,
 	.max_temp = 30,
-	.modes = { [ "off", "cool" ] },
+	.modes = { "off", "cool" },
 	.number_of_modes = 2,
 	.mode_command_topic = "~/mode/set",
 	.mode_command_template = "{{ value if value=='off' else 'on' }}",
@@ -81,7 +85,6 @@ static struct config ac_config = {
 };
 
 static const struct json_obj_descr device_descr[] = {
-	JSON_OBJ_DESCR_PRIM(struct device, unit,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, identifiers,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, name,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, sw_version,	 JSON_TOK_STRING),
@@ -109,7 +112,6 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 {
 	uint8_t dev_id[DEVICE_ID_BYTE_SIZE];
 	ssize_t length;
-	int i;
 
 	length = hwinfo_get_device_id(dev_id, sizeof(dev_id));
 
@@ -121,27 +123,52 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 		return length;
 	}
 
-	bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len)
+	bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len);
 
 	return 0;
 }
 
-static int ha_send_discovery(void)
-{
-
-}
-
 static int ha_subscribe_to_topics(void)
 {
+	return 0;
+}
 
+// <discovery_prefix>/<component>/[<node_id>/]<object_id>/config
+//
+// Best practice for entities with a unique_id is to set <object_id> to
+// unique_id and omit the <node_id>.
+// https://www.home-assistant.io/integrations/mqtt/#discovery-topic
+// #define DISCOVERY_TOPIC_FORMAT_STRING	"homeassistant/climate/%s/config"
+#define DISCOVERY_TOPIC_FORMAT_STRING	"test/climate/%s/config"
+static int ha_send_discovery(void)
+{
+	int ret;
+	char json_config[512];
+	char discovery_topic[sizeof(DISCOVERY_TOPIC_FORMAT_STRING) - 2
+			     + DEVICE_ID_BYTE_SIZE * 2];
+
+	snprintf(discovery_topic, sizeof(discovery_topic),
+		 DISCOVERY_TOPIC_FORMAT_STRING, ac_config.dev.identifiers);
+
+	ret = json_obj_encode_buf(config_descr, ARRAY_SIZE(config_descr),
+				  &ac_config, json_config, sizeof(json_config));
+	if (ret < 0) {
+		LOG_ERR("Could not encode JSON");
+		return ret;
+	}
+
+	mqtt_publish_discovery(json_config, discovery_topic);
+
+	return 0;
 }
 
 int ha_send_current_temp(double current_temp)
 {
-
+	return 0;
 }
 
-int ha_start(mode_change_callback, temperature_setpoint_change_callback)
+// int ha_start(mode_change_callback, temperature_setpoint_change_callback)
+int ha_start(void)
 {
 	int ret;
 
@@ -155,8 +182,8 @@ int ha_start(mode_change_callback, temperature_setpoint_change_callback)
 
 	LOG_INF("Device ID: 0x%s", ac_config.dev.identifiers);
 
-	ha_send_discovery()
-	ha_subscribe_to_topics();
+	ha_send_discovery();
+	// ha_subscribe_to_topics();
 
 	return 0;
 }
