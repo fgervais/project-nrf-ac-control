@@ -1,28 +1,3 @@
-
-// {
-//   "~": "home/room/kitchen/climate/ac",
-//   "name": "Split Air Conditioner",
-//   "initial": 22,
-//   "min_temp": 16,
-//   "max_temp": 30,
-
-//   "modes": "['off', 'cool']",
-//   "mode_command_topic": "~/mode/set",
-//   "mode_command_template": "{{ value if value=='off' else 'on' }}",
-//   "temperature_command_topic": "~/temperature/set",
-//   "precision": 1.0,
-
-//   "device": {
-//     "identifiers": cmd_get_device_id(),
-//     "name": "Split Air Conditioner",
-//     "sw_version": "7cdc3fb1ddce7a31e6192e2760791e24a2d11d41",
-//     "hw_version": "1.0.0", 
-//     "model": "unknown",
-//     "manufacturer": "GREE ELECTRIC APPLIANCES INC."
-//   }
-// }
-
-
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 
@@ -38,7 +13,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 
 
 struct device {
-	char identifiers[DEVICE_ID_BYTE_SIZE*2 + 1];
+	const char *identifiers;
 	const char *name;
 	const char *sw_version;
 	const char *hw_version;
@@ -49,18 +24,20 @@ struct device {
 struct config {
 	const char *base_path;
 	const char *name;
-	float initial;
-	float min_temp;
-	float max_temp;
+	int initial;
+	int min_temp;
+	int max_temp;
 	const char *modes[2];
 	int number_of_modes;
 	const char *mode_command_topic;
 	const char *mode_command_template;
 	const char *temperature_command_topic;
-	float precision;
+	int precision;
 	struct device dev;
 };
 
+
+static char device_id[DEVICE_ID_BYTE_SIZE * 2 + 1];
 
 static struct config ac_config = {
 	.base_path = "home/room/kitchen/climate/ac",
@@ -73,9 +50,9 @@ static struct config ac_config = {
 	.mode_command_topic = "~/mode/set",
 	.mode_command_template = "{{ value if value=='off' else 'on' }}",
 	.temperature_command_topic = "~/temperature/set",
-	.precision = 1.0,
+	.precision = 1,
 	.dev = {
-		// .identifiers = ,
+		.identifiers = device_id,
 		.name = "Split Air Conditioner",
 		.sw_version = "7cdc3fb1ddce7a31e6192e2760791e24a2d11d41",
 		.hw_version = "1.0.0",
@@ -96,14 +73,14 @@ static const struct json_obj_descr device_descr[] = {
 static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM_NAMED(struct config, "~", base_path,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, name,			JSON_TOK_STRING),
-	JSON_OBJ_DESCR_PRIM(struct config, initial,			JSON_TOK_FLOAT),
-	JSON_OBJ_DESCR_PRIM(struct config, min_temp,			JSON_TOK_FLOAT),
-	JSON_OBJ_DESCR_PRIM(struct config, max_temp,			JSON_TOK_FLOAT),
+	JSON_OBJ_DESCR_PRIM(struct config, initial,			JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(struct config, min_temp,			JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(struct config, max_temp,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_ARRAY(struct config, modes, 2, number_of_modes,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_topic,		JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_template,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
-	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_FLOAT),
+	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
 
@@ -112,6 +89,7 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 {
 	uint8_t dev_id[DEVICE_ID_BYTE_SIZE];
 	ssize_t length;
+	int ret;
 
 	length = hwinfo_get_device_id(dev_id, sizeof(dev_id));
 
@@ -123,7 +101,8 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 		return length;
 	}
 
-	bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len);
+	ret = bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len);
+	LOG_DBG("bin2hex(): %d", ret);
 
 	return 0;
 }
@@ -153,9 +132,12 @@ static int ha_send_discovery(void)
 	ret = json_obj_encode_buf(config_descr, ARRAY_SIZE(config_descr),
 				  &ac_config, json_config, sizeof(json_config));
 	if (ret < 0) {
-		LOG_ERR("Could not encode JSON");
+		LOG_ERR("Could not encode JSON (%d)", ret);
 		return ret;
 	}
+
+	LOG_DBG("payload: %s", json_config);
+	return 0;
 
 	mqtt_publish_discovery(json_config, discovery_topic);
 
@@ -173,8 +155,8 @@ int ha_start(void)
 	int ret;
 
 	ret = get_device_id_string(
-		ac_config.dev.identifiers,
-		ARRAY_SIZE(ac_config.dev.identifiers));
+		device_id,
+		ARRAY_SIZE(device_id));
 	if (ret < 0) {
 		LOG_ERR("Could not get device ID");
 		return ret;
