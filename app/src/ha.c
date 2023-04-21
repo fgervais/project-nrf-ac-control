@@ -94,7 +94,7 @@ static const struct json_obj_descr device_descr[] = {
 };
 
 static const struct json_obj_descr config_descr[] = {
-	JSON_OBJ_DESCR_PRIM(struct config, base_path,			JSON_TOK_STRING),
+	JSON_OBJ_DESCR_PRIM_NAMED(struct config, "~", base_path,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, name,			JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, initial,			JSON_TOK_FLOAT),
 	JSON_OBJ_DESCR_PRIM(struct config, min_temp,			JSON_TOK_FLOAT),
