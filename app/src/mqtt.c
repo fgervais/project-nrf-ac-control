@@ -11,7 +11,6 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 
 #define MQTT_BUFFER_SIZE	1024
-#define STR(x)			#x
 
 
 /* Buffers for MQTT client. */
@@ -377,7 +376,7 @@ static int get_mqtt_broker_addrinfo(void)
 		hints.ai_protocol = 0;
 
 		rc = zsock_getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
-				       STR(CONFIG_APP_MQTT_SERVER_PORT),
+				       STRINGIFY(CONFIG_APP_MQTT_SERVER_PORT),
 				       &hints, &haddr);
 		if (rc == 0) {
 			LOG_INF("DNS resolved for %s:%d",
