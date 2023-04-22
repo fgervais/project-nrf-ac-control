@@ -33,6 +33,7 @@ struct config {
 	const char *mode_command_topic;
 	const char *mode_command_template;
 	const char *temperature_command_topic;
+	const char *temperature_current_topic;
 	int precision;
 	struct device dev;
 };
@@ -51,6 +52,7 @@ static struct config ac_config = {
 	.mode_command_topic = "~/mode/set",
 	.mode_command_template = "{{ value if value=='off' else 'on' }}",
 	.temperature_command_topic = "~/temperature/set",
+	.temperature_current_topic = "~/temperature/current",
 	.precision = 1,
 	.dev = {
 		.identifiers = device_id,
@@ -81,6 +83,7 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_topic,		JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_template,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
+	JSON_OBJ_DESCR_PRIM(struct config, temperature_current_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
@@ -123,7 +126,7 @@ static int ha_subscribe_to_topics(void)
 static int ha_send_discovery(void)
 {
 	int ret;
-	char json_config[512];
+	char json_config[1024];
 	char discovery_topic[sizeof(DISCOVERY_TOPIC_FORMAT_STRING) - 2
 			     + DEVICE_ID_BYTE_SIZE * 2];
 
