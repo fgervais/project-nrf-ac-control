@@ -130,6 +130,8 @@ static int ha_send_discovery(void)
 	snprintf(discovery_topic, sizeof(discovery_topic),
 		 DISCOVERY_TOPIC_FORMAT_STRING, ac_config.dev.identifiers);
 
+	LOG_DBG("discovery topic: %s", discovery_topic);
+
 	ret = json_obj_encode_buf(config_descr, ARRAY_SIZE(config_descr),
 				  &ac_config, json_config, sizeof(json_config));
 	if (ret < 0) {
@@ -163,7 +165,7 @@ int ha_start(void)
 		return ret;
 	}
 
-	LOG_INF("Device ID: 0x%s", ac_config.dev.identifiers);
+	LOG_INF("Device ID: %s", ac_config.dev.identifiers);
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
 	ha_send_discovery();

@@ -353,7 +353,7 @@ int drv_ir_send_on(const struct device *dev)
 
 	drv_ir_transmit_sequence(dev);
 
-	LOG_DBG("Transmission requested");
+	LOG_INF("Transmission requested");
 
 	return 0;
 }
@@ -376,7 +376,7 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 
 	drv_ir_transmit_sequence(dev);
 
-	LOG_DBG("Transmission requested");
+	LOG_INF("Transmission requested");
 
 	return 0;
 }
