@@ -12,6 +12,7 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 
 #define MQTT_BUFFER_SIZE	1024
+#define MQTT_CLIENTID 		"zephyr_publisher"
 
 
 /* Buffers for MQTT client. */
@@ -102,16 +103,16 @@ static int wait(int timeout)
 
 static void broker_init(void)
 {
-	struct sockaddr_in *broker4 = (struct sockaddr_in *)&broker;
+	struct sockaddr_in6 *broker6 = (struct sockaddr_in6 *)&broker;
 
-	broker4->sin_family = AF_INET;
-	broker4->sin_port = htons(CONFIG_APP_MQTT_SERVER_PORT);
+	broker6->sin6_family = AF_INET6;
+	broker6->sin6_port = htons(CONFIG_APP_MQTT_SERVER_PORT);
 
 #if defined(CONFIG_DNS_RESOLVER)
-	net_ipaddr_copy(&broker4->sin_addr,
-			&net_sin(haddr->ai_addr)->sin_addr);
+	net_ipaddr_copy(&broker6->sin6_addr,
+			&net_sin6(haddr->ai_addr)->sin6_addr);
 #else
-	zsock_inet_pton(AF_INET, CONFIG_APP_MQTT_SERVER_ADDR, &broker4->sin_addr);
+	zsock_inet_pton(AF_INET6, CONFIG_APP_MQTT_SERVER_ADDR, &broker6->sin_addr);
 #endif
 }
 
@@ -129,8 +130,11 @@ static void client_init(struct mqtt_client *client)
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
 
-	// client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
-	// client->client_id.size = strlen(MQTT_CLIENTID);
+	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
+	client->client_id.size = strlen(MQTT_CLIENTID);
+
+	client->password = NULL;
+	client->user_name = NULL;
 
 	// password.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD;
 	// password.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD);
