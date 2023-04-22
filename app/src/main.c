@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #include "drv_ir.h"
 #include "ha.h"
+#include "openthread.h"
 
 
 #define SLEEP_TIME_MS   10
@@ -84,6 +85,14 @@ void main(void)
 		// drv_ir_send_ifeel(pwm0, current_temp);
 		// k_sleep(K_SECONDS(5));
 	// }
+
+	openthread_enable_ready_flag();
+
+	while (!openthread_ready)
+		k_sleep(K_MSEC(100));
+
+	// Something else is not ready, not sure what
+	k_sleep(K_MSEC(100));
 
 	ha_start();
 

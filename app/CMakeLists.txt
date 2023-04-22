@@ -29,6 +29,7 @@ target_include_directories(app PRIVATE ${CMAKE_BINARY_DIR}/app/include src)
 target_sources(app PRIVATE src/drv_ir.c)
 target_sources(app PRIVATE src/mqtt.c)
 target_sources(app PRIVATE src/ha.c)
+target_sources(app PRIVATE src/openthread.c)
 target_sources(app PRIVATE src/main.c)
 
 zephyr_include_directories(
