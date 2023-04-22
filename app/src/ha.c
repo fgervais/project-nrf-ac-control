@@ -140,7 +140,6 @@ static int ha_send_discovery(void)
 	}
 
 	LOG_DBG("payload: %s", json_config);
-	return 0;
 
 	mqtt_publish_discovery(json_config, discovery_topic);
 

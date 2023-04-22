@@ -74,15 +74,15 @@ void main(void)
 	LOG_INF("Device %s - %p is ready", tmp117->name, tmp117);
 
 	// while(1) {
-		LOG_INF("────────────────────────────────────────");
-		current_temp = get_current_temperature(tmp117);
+		// LOG_INF("────────────────────────────────────────");
+		// current_temp = get_current_temperature(tmp117);
 
-		LOG_INF("🌡️ temp is %g°C", current_temp);
+		// LOG_INF("🌡️ temp is %g°C", current_temp);
 
-		drv_ir_send_on(pwm0);
-		k_sleep(K_SECONDS(1));
-		drv_ir_send_ifeel(pwm0, current_temp);
-		k_sleep(K_SECONDS(5));
+		// drv_ir_send_on(pwm0);
+		// k_sleep(K_SECONDS(1));
+		// drv_ir_send_ifeel(pwm0, current_temp);
+		// k_sleep(K_SECONDS(5));
 	// }
 
 	ha_start();

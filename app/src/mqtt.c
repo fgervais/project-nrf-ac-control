@@ -6,6 +6,7 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 #include <zephyr/net/socket.h>
 #include <zephyr/random/rand32.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 
@@ -371,17 +372,28 @@ static int get_mqtt_broker_addrinfo(void)
 	int rc = -EINVAL;
 
 	while (retries--) {
-		hints.ai_family = AF_INET;
+		hints.ai_family = AF_INET6;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
 
-		rc = zsock_getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
+		rc = getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
 				       STRINGIFY(CONFIG_APP_MQTT_SERVER_PORT),
 				       &hints, &haddr);
 		if (rc == 0) {
+			char atxt[INET6_ADDRSTRLEN] = { 0 };
+
 			LOG_INF("DNS resolved for %s:%d",
 			CONFIG_APP_MQTT_SERVER_HOSTNAME,
 			CONFIG_APP_MQTT_SERVER_PORT);
+
+			assert(haddr->ai_addr->sa_family == AF_INET6);
+
+			inet_ntop(
+			    AF_INET6,
+			    &((const struct sockaddr_in6 *)haddr->ai_addr)->sin6_addr,
+			    atxt, sizeof(atxt));
+
+			LOG_INF("address: %s", atxt);
 
 			return 0;
 		}
@@ -389,6 +401,8 @@ static int get_mqtt_broker_addrinfo(void)
 		LOG_ERR("DNS not resolved for %s:%d, retrying",
 			CONFIG_APP_MQTT_SERVER_HOSTNAME,
 			CONFIG_APP_MQTT_SERVER_PORT);
+
+		k_sleep(K_MSEC(200));
 	}
 
 	return rc;
