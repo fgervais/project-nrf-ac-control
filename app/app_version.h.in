@@ -26,4 +26,6 @@
 /** Application version (string). */
 #define APP_VERSION_STR "${PROJECT_VERSION}"
 
+#define APP_VERSION_FULL "${GIT_DESCRIBE}"
+
 #endif /* APP_VERSION_H_ */

@@ -5,6 +5,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #include <zephyr/drivers/hwinfo.h>
 
 #include <stdio.h>
+#include <app_version.h>
 
 #include "mqtt.h"
 
@@ -54,7 +55,7 @@ static struct config ac_config = {
 	.dev = {
 		.identifiers = device_id,
 		.name = "Split Air Conditioner",
-		.sw_version = "7cdc3fb1ddce7a31e6192e2760791e24a2d11d41",
+		.sw_version = APP_VERSION_FULL,
 		.hw_version = "1.0.0",
 		.model = "unknown",
 		.manufacturer = "GREE ELECTRIC APPLIANCES INC.",	
@@ -163,6 +164,7 @@ int ha_start(void)
 	}
 
 	LOG_INF("Device ID: 0x%s", ac_config.dev.identifiers);
+	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
 	ha_send_discovery();
 	// ha_subscribe_to_topics();
