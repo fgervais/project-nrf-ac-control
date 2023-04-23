@@ -38,8 +38,16 @@ struct config {
 	struct device dev;
 };
 
+struct subscription {
+	const char *topic;
+	void (*callback)(const char *);
+};
+
 
 static char device_id[DEVICE_ID_BYTE_SIZE * 2 + 1];
+
+static void callback_sub_set_mode(const char *payload);
+static void callback_sub_set_temperature(const char *payload);
 
 static struct config ac_config = {
 	.base_path = "home/room/kitchen/climate/ac",
@@ -61,6 +69,17 @@ static struct config ac_config = {
 		.hw_version = "1.0.0",
 		.model = "unknown",
 		.manufacturer = "GREE ELECTRIC APPLIANCES INC.",	
+	},
+};
+
+static const struct subscription subs[] = {
+	{ 
+		.topic = "home/room/kitchen/climate/ac/mode/set",
+		.callback = callback_sub_set_mode,
+	},
+	{ 
+		.topic = "home/room/kitchen/climate/ac/temperature/set",
+		.callback = callback_sub_set_temperature,
 	},
 };
 
@@ -88,6 +107,15 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
 
+static void callback_sub_set_mode(const char *payload)
+{
+
+}
+
+static void callback_sub_set_temperature(const char *payload)
+{
+	
+}
 
 static int get_device_id_string(char *id_string, size_t id_string_len)
 {
