@@ -178,7 +178,9 @@ int ha_start(void)
 	LOG_INF("Device ID: %s", ac_config.dev.identifiers);
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
+	LOG_INF("✏️  send discovery ✏️");
 	ha_send_discovery();
+	LOG_INF("✏️  subscribe to topics ✏️");
 	ha_subscribe_to_topics();
 
 	return 0;
