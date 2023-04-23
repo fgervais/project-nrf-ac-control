@@ -32,6 +32,7 @@ static int nfds;
 static bool mqtt_connected;
 
 // static struct k_work_delayable pub_message;
+static struct k_work_delayable keepalive_work;
 
 #if defined(CONFIG_DNS_RESOLVER)
 static struct zsock_addrinfo hints;
@@ -54,6 +55,7 @@ static struct mqtt_subscription_list subs_list;
 
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
+static void keepalive(struct k_work *work);
 static int poll_mqtt(void);
 
 // static int tls_init(void)
@@ -115,6 +117,8 @@ static void broker_init(void)
 #else
 	zsock_inet_pton(AF_INET6, CONFIG_APP_MQTT_SERVER_ADDR, &broker6->sin_addr);
 #endif
+
+	k_work_init_delayable(&keepalive_work, keepalive);
 }
 
 static void client_init(struct mqtt_client *client)
@@ -243,6 +247,10 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		mqtt_publish_qos1_ack(&client_ctx, &puback);
 		break;
 
+	case MQTT_EVT_PINGRESP:
+		LOG_DBG("PINGRESP");
+		break;
+
 	default:
 		LOG_DBG("Unhandled MQTT event %d", evt->type);
 		break;
@@ -342,6 +350,38 @@ static int poll_mqtt(void)
 // 	k_work_reschedule(&pub_message, K_SECONDS(timeout_for_publish()));
 // }
 
+static void keepalive(struct k_work *work)
+{
+	int rc;
+
+	LOG_DBG("🤖 mqtt keepalive");
+
+	if (!mqtt_connected) {
+		LOG_WRN("we are disconnected");
+		return;
+	}
+
+	// rc = mqtt_live(&client_ctx);
+	rc = mqtt_ping(&client_ctx);
+	if (rc < 0) {
+		LOG_ERR("mqtt_ping (%d)", rc);
+		return;
+	}
+
+	// rc = mqtt_input(&client_ctx);
+	// if (rc < 0) {
+	// 	LOG_ERR("mqtt_input (%d)", rc);
+	// 	return;
+	// }
+	rc = poll_mqtt();
+	if (rc < 0) {
+		LOG_ERR("poll_mqtt (%d)", rc);
+		return;
+	}
+
+	k_work_reschedule(&keepalive_work, K_SECONDS(client_ctx.keepalive));
+}
+
 
 #define MQTT_CONNECT_TIMEOUT_MS	1000
 #define MQTT_ABORT_TIMEOUT_MS	5000
@@ -375,6 +415,8 @@ static int try_to_connect(struct mqtt_client *client)
 			// subscribe(client);
 			// k_work_reschedule(&pub_message,
 			// 		  K_SECONDS(timeout_for_publish()));
+			k_work_reschedule(&keepalive_work,
+					  K_SECONDS(client->keepalive));
 			return 0;
 		}
 
@@ -446,6 +488,8 @@ static int connect_to_server(void)
 	if (rc) {
 		return rc;
 	}
+
+	LOG_INF("mqtt keepalive: %ds", client_ctx.keepalive);
 
 	return 0;
 }
