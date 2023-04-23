@@ -263,6 +263,9 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 	if (err) {
 		LOG_ERR("Failed on topic %s", topic);
 	}
+
+	wait(1000);
+	mqtt_input(client);
 }
 
 // static int publish(struct mqtt_client *client, enum mqtt_qos qos)
@@ -554,4 +557,22 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 	}
 
 	return mqtt_publish(&client_ctx, &param);
+}
+
+int mqtt_subscribe_to_topic(const char *topic)
+{
+	int ret;
+
+	LOG_INF("subscribing to topic: %s", topic);
+
+	if (!mqtt_connected) {
+		ret = connect_to_server();
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
+	subscribe(&client_ctx, topic);
+
+	return 0;
 }

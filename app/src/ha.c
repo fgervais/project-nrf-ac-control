@@ -113,6 +113,14 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 
 static int ha_subscribe_to_topics(void)
 {
+	char mode_command_topic[strlen(ac_config.base_path)
+				+ strlen(ac_config.mode_command_topic)];
+
+	snprintf(mode_command_topic, sizeof(mode_command_topic),
+		 "%s%s", ac_config.base_path, ac_config.mode_command_topic + 1);
+
+	mqtt_subscribe_to_topic(mode_command_topic);
+
 	return 0;
 }
 
@@ -171,7 +179,7 @@ int ha_start(void)
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
 	ha_send_discovery();
-	// ha_subscribe_to_topics();
+	ha_subscribe_to_topics();
 
 	return 0;
 }
