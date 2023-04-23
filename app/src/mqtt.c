@@ -54,6 +54,7 @@ static struct mqtt_subscription_list subs_list;
 
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
+static int poll_mqtt(void);
 
 // static int tls_init(void)
 // {
@@ -286,17 +287,32 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 // 	return mqtt_publish(client, &param);
 // }
 
-// static void poll_mqtt(void)
-// {
-// 	int rc;
+static int poll_mqtt(void)
+{
+	int rc;
 
-// 	while (mqtt_connected) {
-// 		rc = wait(SYS_FOREVER_MS);
-// 		if (rc > 0) {
-// 			mqtt_input(&client_ctx);
-// 		}
-// 	}
-// }
+	if (!mqtt_connected) {
+		LOG_WRN("not connected");
+		return -ENOTCONN;
+	}
+
+	if (wait(1000)) {
+		rc = mqtt_input(&client_ctx);
+		if (rc < 0) {
+			LOG_ERR("mqtt_input (%d)", rc);
+			return rc;
+		}
+	}
+
+	return 0;
+
+	// while (mqtt_connected) {
+	// 	rc = wait(SYS_FOREVER_MS);
+	// 	if (rc > 0) {
+	// 		mqtt_input(&client_ctx);
+	// 	}
+	// }
+}
 
 /* Random time between 10 - 15 seconds
  * If you prefer to have this value more than CONFIG_MQTT_KEEPALIVE,
@@ -555,7 +571,19 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 		}
 	}
 
-	return mqtt_publish(&client_ctx, &param);
+	ret = mqtt_publish(&client_ctx, &param);
+	if (ret < 0) {
+		LOG_ERR("mqtt_publish (%d)", ret);
+		return ret;
+	}
+
+	ret = poll_mqtt();
+	if (ret < 0) {
+		LOG_ERR("poll_mqtt (%d)", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 int mqtt_subscribe_to_topic(const char *topic)
