@@ -213,7 +213,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		LOG_DBG("PUBACK packet id: %u\n", evt->param.puback.message_id);
+		LOG_DBG("PUBACK packet id: %u", evt->param.puback.message_id);
 		break;
 
 	case MQTT_EVT_PUBLISH:
