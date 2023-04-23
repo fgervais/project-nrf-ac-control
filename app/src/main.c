@@ -56,6 +56,8 @@ void main(void)
 	const struct device *const tmp117 = DEVICE_DT_GET(TMP116_NODE);
 
 
+	LOG_INF("\n👟 MAIN START 👟\n");
+
 	if (app_event_manager_init()) {
 		LOG_ERR("Event manager not initialized");
 	} else {
