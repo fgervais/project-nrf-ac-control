@@ -38,7 +38,7 @@ static struct zsock_addrinfo hints;
 static struct zsock_addrinfo *haddr;
 #endif
 
-static K_SEM_DEFINE(mqtt_start, 0, 1);
+// static K_SEM_DEFINE(mqtt_start, 0, 1);
 
 /* Application TLS configuration details */
 // #define TLS_SNI_HOSTNAME CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME
@@ -252,7 +252,6 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 {
 	int err;
 
-	/* subscribe */
 	subs_topic.topic.utf8 = topic;
 	subs_topic.topic.size = strlen(topic);
 	subs_list.list = &subs_topic;
