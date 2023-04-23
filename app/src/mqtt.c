@@ -264,8 +264,7 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 		LOG_ERR("Failed on topic %s", topic);
 	}
 
-	wait(1000);
-	mqtt_input(client);
+	poll_mqtt();
 }
 
 // static int publish(struct mqtt_client *client, enum mqtt_qos qos)
