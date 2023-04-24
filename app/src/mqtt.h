@@ -8,7 +8,7 @@ struct mqtt_subscription {
 
 int mqtt_publish_discovery(char *json_config, const char *topic);
 int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
-			    size_t number_of_subscriptions);
+			    size_t nb_of_subs);
 int mqtt_init(const char *dev_id);
 
 #endif /* MQTT_H_ */

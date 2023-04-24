@@ -34,6 +34,9 @@ static int nfds;
 static const char *device_id;
 static bool mqtt_connected;
 
+static const struct mqtt_subscription *subscriptions;
+static size_t number_of_subscriptions;
+
 // static struct k_work_delayable pub_message;
 static struct k_work_delayable keepalive_work;
 
@@ -249,6 +252,16 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 
 		puback.message_id = evt->param.publish.message_id;
 		mqtt_publish_qos1_ack(&client_ctx, &puback);
+
+		for (int i = 0; i < number_of_subscriptions; i++) {
+			if (strncmp(subscriptions[i].topic,
+				    evt->param.publish.message.topic.topic.utf8,
+				    evt->param.publish.message.topic.topic.size) == 0) {
+				LOG_INF("calling publish callback");
+				subscriptions[i].callback(data);
+				break;
+			}
+		}
 		break;
 
 	case MQTT_EVT_PINGRESP:
@@ -771,7 +784,7 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 }
 
 int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
-			    size_t number_of_subscriptions)
+			    size_t nb_of_subs)
 {
 	int ret;
 
@@ -782,7 +795,10 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 		}
 	}
 
-	for (int i = 0; i < number_of_subscriptions; i++) {
+	subscriptions = subs;
+	number_of_subscriptions = nb_of_subs;
+
+	for (int i = 0; i < nb_of_subs; i++) {
 		LOG_INF("subscribing to topic: %s", subs[i].topic);
 		subscribe(&client_ctx, subs[i].topic);		
 	}

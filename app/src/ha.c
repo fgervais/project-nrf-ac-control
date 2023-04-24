@@ -104,12 +104,12 @@ static const struct json_obj_descr config_descr[] = {
 
 static void callback_sub_set_mode(const char *payload)
 {
-
+	LOG_DBG("I've been called back: %s", payload);
 }
 
 static void callback_sub_set_temperature(const char *payload)
 {
-	
+	LOG_DBG("I've been called back: %s", payload);
 }
 
 static int get_device_id_string(char *id_string, size_t id_string_len)
