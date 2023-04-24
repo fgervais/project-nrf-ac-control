@@ -218,7 +218,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		LOG_DBG("PUBACK packet id: %u", evt->param.puback.message_id);
+		LOG_INF("PUBACK packet id: %u", evt->param.puback.message_id);
 		break;
 
 	case MQTT_EVT_PUBLISH:
@@ -227,6 +227,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		LOG_INF("MQTT publish received %d, %d bytes", evt->result, len);
 		LOG_INF(" id: %d, qos: %d", evt->param.publish.message_id,
 			evt->param.publish.message.topic.qos);
+		LOG_INF(" topic: %s", evt->param.publish.message.topic.topic.utf8);
 
 		while (len) {
 			bytes_read = mqtt_read_publish_payload(&client_ctx,
