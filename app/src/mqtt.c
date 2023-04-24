@@ -759,7 +759,7 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 	param.message.payload.len = strlen(json_config);
 	param.message_id = sys_rand32_get();
 	param.dup_flag = 0U;
-	param.retain_flag = 0U;
+	param.retain_flag = 1U;
 
 	if (!mqtt_connected) {
 		ret = connect_to_server();
