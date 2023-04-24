@@ -10,6 +10,8 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 #include <errno.h>
 #include <string.h>
 
+#include "mqtt.h"
+
 
 #define MQTT_BUFFER_SIZE	1024
 // #define MQTT_CLIENTID 		"zephyr_publisher"
@@ -51,8 +53,6 @@ static struct zsock_addrinfo *haddr;
 // };
 
 // static uint8_t topic[] = "devices/" MQTT_CLIENTID "/messages/devicebound/#";
-static struct mqtt_topic subs_topic;
-static struct mqtt_subscription_list subs_list;
 
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
@@ -264,6 +264,8 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 static void subscribe(struct mqtt_client *client, const char *topic)
 {
 	int err;
+	struct mqtt_topic subs_topic;
+	struct mqtt_subscription_list subs_list;
 
 	subs_topic.topic.utf8 = topic;
 	subs_topic.topic.size = strlen(topic);
@@ -768,11 +770,10 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 	return 0;
 }
 
-int mqtt_subscribe_to_topic(const char *topic)
+int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
+			    size_t number_of_subscriptions)
 {
 	int ret;
-
-	LOG_INF("subscribing to topic: %s", topic);
 
 	if (!mqtt_connected) {
 		ret = connect_to_server();
@@ -781,7 +782,10 @@ int mqtt_subscribe_to_topic(const char *topic)
 		}
 	}
 
-	subscribe(&client_ctx, topic);
+	for (int i = 0; i < number_of_subscriptions; i++) {
+		LOG_INF("subscribing to topic: %s", subs[i].topic);
+		subscribe(&client_ctx, subs[i].topic);		
+	}
 
 	return 0;
 }

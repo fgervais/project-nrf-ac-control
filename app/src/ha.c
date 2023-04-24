@@ -38,11 +38,6 @@ struct config {
 	struct device dev;
 };
 
-struct subscription {
-	const char *topic;
-	void (*callback)(const char *);
-};
-
 
 static char device_id[DEVICE_ID_BYTE_SIZE * 2 + 1];
 
@@ -72,7 +67,7 @@ static struct config ac_config = {
 	},
 };
 
-static const struct subscription subs[] = {
+static const struct mqtt_subscription subs[] = {
 	{ 
 		.topic = "home/room/kitchen/climate/ac/mode/set",
 		.callback = callback_sub_set_mode,
@@ -141,13 +136,13 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 
 static int ha_subscribe_to_topics(void)
 {
-	char mode_command_topic[strlen(ac_config.base_path)
-				+ strlen(ac_config.mode_command_topic)];
+	// char mode_command_topic[strlen(ac_config.base_path)
+	// 			+ strlen(ac_config.mode_command_topic)];
 
-	snprintf(mode_command_topic, sizeof(mode_command_topic),
-		 "%s%s", ac_config.base_path, ac_config.mode_command_topic + 1);
+	// snprintf(mode_command_topic, sizeof(mode_command_topic),
+	// 	 "%s%s", ac_config.base_path, ac_config.mode_command_topic + 1);
 
-	mqtt_subscribe_to_topic(mode_command_topic);
+	mqtt_subscribe_to_topic(subs, ARRAY_SIZE(subs));
 
 	return 0;
 }
