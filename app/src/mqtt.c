@@ -264,6 +264,7 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 
 	subs_topic.topic.utf8 = topic;
 	subs_topic.topic.size = strlen(topic);
+	subs_topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
 	subs_list.list = &subs_topic;
 	subs_list.list_count = 1U;
 	subs_list.message_id = 1U;
