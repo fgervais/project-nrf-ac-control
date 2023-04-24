@@ -56,7 +56,7 @@ static struct mqtt_subscription_list subs_list;
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
 static void keepalive(struct k_work *work);
-static int poll_mqtt(void);
+// static int poll_mqtt(void);
 
 // static int tls_init(void)
 // {
@@ -272,7 +272,7 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 		LOG_ERR("Failed on topic %s", topic);
 	}
 
-	poll_mqtt();
+	// poll_mqtt();
 }
 
 // static int publish(struct mqtt_client *client, enum mqtt_qos qos)
@@ -294,32 +294,32 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 // 	return mqtt_publish(client, &param);
 // }
 
-static int poll_mqtt(void)
-{
-	int rc;
+// static int poll_mqtt(void)
+// {
+// 	int rc;
 
-	if (!mqtt_connected) {
-		LOG_WRN("not connected");
-		return -ENOTCONN;
-	}
+// 	if (!mqtt_connected) {
+// 		LOG_WRN("not connected");
+// 		return -ENOTCONN;
+// 	}
 
-	if (wait(1000)) {
-		rc = mqtt_input(&client_ctx);
-		if (rc < 0) {
-			LOG_ERR("mqtt_input (%d)", rc);
-			return rc;
-		}
-	}
+// 	if (wait(1000)) {
+// 		rc = mqtt_input(&client_ctx);
+// 		if (rc < 0) {
+// 			LOG_ERR("mqtt_input (%d)", rc);
+// 			return rc;
+// 		}
+// 	}
 
-	return 0;
+// 	return 0;
 
-	// while (mqtt_connected) {
-	// 	rc = wait(SYS_FOREVER_MS);
-	// 	if (rc > 0) {
-	// 		mqtt_input(&client_ctx);
-	// 	}
-	// }
-}
+// 	// while (mqtt_connected) {
+// 	// 	rc = wait(SYS_FOREVER_MS);
+// 	// 	if (rc > 0) {
+// 	// 		mqtt_input(&client_ctx);
+// 	// 	}
+// 	// }
+// }
 
 /* Random time between 10 - 15 seconds
  * If you prefer to have this value more than CONFIG_MQTT_KEEPALIVE,
@@ -361,26 +361,159 @@ static void keepalive(struct k_work *work)
 		return;
 	}
 
-	// rc = mqtt_live(&client_ctx);
+	if (client_ctx.unacked_ping) {
+		LOG_DBG("Previous MQTT ping not acknowledged");
+		// return -ECONNRESET;
+		return;
+	}
+
 	rc = mqtt_ping(&client_ctx);
 	if (rc < 0) {
 		LOG_ERR("mqtt_ping (%d)", rc);
 		return;
 	}
 
-	// rc = mqtt_input(&client_ctx);
+	// rc = poll_mqtt();
 	// if (rc < 0) {
-	// 	LOG_ERR("mqtt_input (%d)", rc);
+	// 	LOG_ERR("poll_mqtt (%d)", rc);
 	// 	return;
 	// }
-	rc = poll_mqtt();
-	if (rc < 0) {
-		LOG_ERR("poll_mqtt (%d)", rc);
-		return;
-	}
 
 	k_work_reschedule(&keepalive_work, K_SECONDS(client_ctx.keepalive));
 }
+
+static void poll_thread_function(void)
+{
+	int rc;
+
+	while (1) {
+		if (wait(SYS_FOREVER_MS)) {
+			rc = mqtt_input(&client_ctx);
+			if (rc < 0) {
+				LOG_ERR("mqtt_input (%d)", rc);
+				return;
+			}
+		}
+	}
+
+
+
+
+
+
+
+
+// 	int err;
+// 	struct pollfd fds[1];
+// 	struct aws_iot_evt aws_iot_evt = {
+// 		.type = AWS_IOT_EVT_DISCONNECTED,
+// 		.data = { .err = AWS_IOT_DISCONNECT_MISC}
+// 	};
+
+// start:
+// 	k_sem_take(&connection_poll_sem, K_FOREVER);
+// 	atomic_set(&connection_poll_active, 1);
+
+// 	aws_iot_evt.data.err = AWS_IOT_CONNECT_RES_SUCCESS;
+// 	aws_iot_evt.type = AWS_IOT_EVT_CONNECTING;
+// 	aws_iot_notify_event(&aws_iot_evt);
+
+// 	err = connect_client(NULL);
+// 	if (err != AWS_IOT_CONNECT_RES_SUCCESS) {
+// 		aws_iot_evt.data.err = err;
+// 		aws_iot_evt.type = AWS_IOT_EVT_CONNECTING;
+// 		aws_iot_notify_event(&aws_iot_evt);
+// 		goto reset;
+// 	}
+
+// 	LOG_DBG("AWS IoT broker connection request sent");
+
+// 	fds[0].fd = client.transport.tls.sock;
+// 	fds[0].events = POLLIN;
+
+// 	aws_iot_evt.type = AWS_IOT_EVT_DISCONNECTED;
+// 	atomic_set(&aws_iot_disconnected, 0);
+
+// 	while (true) {
+// 		err = poll(fds, ARRAY_SIZE(fds), aws_iot_keepalive_time_left());
+
+// 		/* If poll returns 0 the timeout has expired. */
+// 		if (err == 0) {
+// 			err = aws_iot_ping();
+// 			if (err) {
+// 				LOG_ERR("Cloud MQTT keepalive ping failed: %d", err);
+// 				aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
+// 				break;
+// 			}
+// 			continue;
+// 		}
+
+// 		if ((fds[0].revents & POLLIN) == POLLIN) {
+// 			err = aws_iot_input();
+// 			if (err) {
+// 				LOG_ERR("Cloud MQTT input error: %d", err);
+// 				if (err == -ENOTCONN) {
+// 					break;
+// 				}
+// 			}
+
+// 			if (atomic_get(&aws_iot_disconnected) == 1) {
+// 				LOG_DBG("The cloud socket is already closed.");
+// 				break;
+// 			}
+
+// 			continue;
+// 		}
+
+// 		if (err < 0) {
+// 			LOG_ERR("poll() returned an error: %d", err);
+// 			aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
+// 			break;
+// 		}
+
+// 		if ((fds[0].revents & POLLNVAL) == POLLNVAL) {
+// 			LOG_DBG("Socket error: POLLNVAL");
+// 			LOG_DBG("The cloud socket was unexpectedly closed.");
+// 			aws_iot_evt.data.err =
+// 					AWS_IOT_DISCONNECT_INVALID_REQUEST;
+// 			break;
+// 		}
+
+// 		if ((fds[0].revents & POLLHUP) == POLLHUP) {
+// 			LOG_DBG("Socket error: POLLHUP");
+// 			LOG_DBG("Connection was closed by the cloud.");
+// 			aws_iot_evt.data.err =
+// 					AWS_IOT_DISCONNECT_CLOSED_BY_REMOTE;
+// 			break;
+// 		}
+
+// 		if ((fds[0].revents & POLLERR) == POLLERR) {
+// 			LOG_DBG("Socket error: POLLERR");
+// 			LOG_DBG("Cloud connection was unexpectedly closed.");
+// 			aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
+// 			break;
+// 		}
+// 	}
+
+// 	/* Upon a socket error, disconnect the client and notify the
+// 	 * application. If the client has already been disconnected this has
+// 	 * occurred via a MQTT DISCONNECT event and the application has
+// 	 * already been notified.
+// 	 */
+// 	if (atomic_get(&aws_iot_disconnected) == 0) {
+// 		aws_iot_notify_event(&aws_iot_evt);
+// 		aws_iot_disconnect();
+// 	}
+
+// reset:
+// 	atomic_set(&connection_poll_active, 0);
+// 	k_sem_take(&connection_poll_sem, K_NO_WAIT);
+// 	goto start;
+}
+
+K_THREAD_DEFINE(poll_thread, CONFIG_APP_POLL_THREAD_STACK_SIZE,
+		poll_thread_function, NULL, NULL, NULL,
+		K_LOWEST_APPLICATION_THREAD_PRIO, 0, SYS_FOREVER_MS);
 
 
 #define MQTT_CONNECT_TIMEOUT_MS	1000
@@ -417,6 +550,7 @@ static int try_to_connect(struct mqtt_client *client)
 			// 		  K_SECONDS(timeout_for_publish()));
 			k_work_reschedule(&keepalive_work,
 					  K_SECONDS(client->keepalive));
+			k_thread_start(poll_thread);
 			return 0;
 		}
 
@@ -620,11 +754,11 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 		return ret;
 	}
 
-	ret = poll_mqtt();
-	if (ret < 0) {
-		LOG_ERR("poll_mqtt (%d)", ret);
-		return ret;
-	}
+	// ret = poll_mqtt();
+	// if (ret < 0) {
+	// 	LOG_ERR("poll_mqtt (%d)", ret);
+	// 	return ret;
+	// }
 
 	return 0;
 }
