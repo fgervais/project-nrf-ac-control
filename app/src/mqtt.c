@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 
 #define MQTT_BUFFER_SIZE	1024
-#define MQTT_CLIENTID 		"zephyr_publisher"
+// #define MQTT_CLIENTID 		"zephyr_publisher"
 
 
 /* Buffers for MQTT client. */
@@ -29,6 +29,7 @@ static struct sockaddr_storage broker;
 static struct zsock_pollfd fds[1];
 static int nfds;
 
+static const char *device_id;
 static bool mqtt_connected;
 
 // static struct k_work_delayable pub_message;
@@ -135,8 +136,10 @@ static void client_init(struct mqtt_client *client)
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
 
-	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
-	client->client_id.size = strlen(MQTT_CLIENTID);
+	client->client_id.utf8 = (uint8_t *)device_id;
+	client->client_id.size = strlen(device_id);
+
+	LOG_DBG("client id: %s", device_id);
 
 	client->password = NULL;
 	client->user_name = NULL;
@@ -779,6 +782,13 @@ int mqtt_subscribe_to_topic(const char *topic)
 	}
 
 	subscribe(&client_ctx, topic);
+
+	return 0;
+}
+
+int mqtt_init(const char *dev_id)
+{
+	device_id = dev_id;
 
 	return 0;
 }

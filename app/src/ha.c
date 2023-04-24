@@ -206,6 +206,8 @@ int ha_start(void)
 	LOG_INF("Device ID: %s", ac_config.dev.identifiers);
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
+	mqtt_init(device_id);
+
 	LOG_INF("✏️  send discovery ✏️");
 	ha_send_discovery();
 	LOG_INF("✏️  subscribe to topics ✏️");
