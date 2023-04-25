@@ -322,15 +322,14 @@ static int drv_ir_transmit_sequence(const struct device *dev)
 	return 0;
 }
 
-#define TARGET_TEMPERATURE 22
-int drv_ir_send_on(const struct device *dev)
+int drv_ir_send_on(const struct device *dev, uint8_t temperature_setpoint)
 {
 	struct pwm_nrfx_data *data = dev->data;
 
 	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
 	data->frame.on = 1;
 	data->frame.oscillating = 1;
-	data->frame.temperature = TARGET_TEMPERATURE - DRV_IR_TEMP_BASE_VALUE;
+	data->frame.temperature = temperature_setpoint - DRV_IR_TEMP_BASE_VALUE;
 	data->frame.light = 1;
 
 	data->ext_frame.swing = DRV_IR_EXT_FRAME_SWING_ALL;
@@ -338,7 +337,7 @@ int drv_ir_send_on(const struct device *dev)
 	data->ext_frame.i_feel = 0;
 	data->ext_frame.unknown = DRV_IR_EXT_FRAME_UNKNOWN_VAL;
 	data->ext_frame.temperature = (
-		(TARGET_TEMPERATURE - DRV_IR_TEMP_BASE_VALUE)
+		(temperature_setpoint - DRV_IR_TEMP_BASE_VALUE)
 			+ DRV_IR_EXT_FRAME_COOLING_TEMP_OFFSET_C
 	) & 0x0F;
 
