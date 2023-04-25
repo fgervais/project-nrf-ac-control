@@ -107,7 +107,7 @@ static const struct json_obj_descr config_descr[] = {
 };
 
 static void (*mode_change_callback)(const char *mode) = NULL;
-static void (*temperature_setpoint_change_callback)(float setpoint) = NULL;
+static void (*temperature_setpoint_change_callback)(double setpoint) = NULL;
 
 static void callback_sub_set_mode(const char *payload)
 {
