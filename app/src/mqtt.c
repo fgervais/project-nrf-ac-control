@@ -187,7 +187,6 @@ static void client_init(struct mqtt_client *client)
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt)
 {
-	struct mqtt_puback_param puback;
 	uint8_t data[33];
 	int len;
 	int bytes_read;
@@ -250,9 +249,6 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			len -= bytes_read;
 		}
 
-		puback.message_id = evt->param.publish.message_id;
-		mqtt_publish_qos1_ack(&client_ctx, &puback);
-
 		for (int i = 0; i < number_of_subscriptions; i++) {
 			if (strncmp(subscriptions[i].topic,
 				    evt->param.publish.message.topic.topic.utf8,
@@ -281,7 +277,7 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 
 	subs_topic.topic.utf8 = topic;
 	subs_topic.topic.size = strlen(topic);
-	subs_topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
+	subs_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 	subs_list.list = &subs_topic;
 	subs_list.list_count = 1U;
 	subs_list.message_id = 1U;
@@ -751,7 +747,7 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 	int ret;
 	struct mqtt_publish_param param;
 
-	param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
+	param.message.topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 	param.message.topic.topic.utf8 = (uint8_t *)topic;
 	param.message.topic.topic.size = strlen(topic);
 	param.message.payload.data = json_config;
