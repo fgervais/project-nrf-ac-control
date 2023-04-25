@@ -22,9 +22,14 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #define TMP116_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(ti_tmp116)
 
+#define CHANGE_MODE_EVENT_OFF		BIT(0)
+#define CHANGE_MODE_EVENT_COOL		BIT(1)
+
 
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static double temperature_setpoint = -1;
+
+static K_EVENT_DEFINE(change_mode_event);
 
 static void mode_change_callback(const char *mode)
 {
@@ -35,12 +40,14 @@ static void mode_change_callback(const char *mode)
 
 	if (strcmp(mode, "cool") == 0) {
 		LOG_DBG("❄️  mode %s", mode);
+		k_event_post(&change_mode_event, CHANGE_MODE_EVENT_COOL);
 		// drv_ir_send_on(pwm0, temperature_setpoint);
 		// k_sleep(K_SECONDS(1));
 		// drv_ir_send_ifeel(pwm0, current_temp);
 	}
 	else if (strcmp(mode, "off") == 0) {
 		LOG_DBG("🔌 mode %s", mode);
+		k_event_post(&change_mode_event, CHANGE_MODE_EVENT_OFF);
 		// drv_ir_send_on(pwm0, temperature_setpoint);
 	}
 }
@@ -122,6 +129,12 @@ void main(void)
 	k_sleep(K_MSEC(100));
 
 	ha_start(mode_change_callback, temperature_setpoint_change_callback);
+
+	// while (1) {
+	// 	k_event_wait(&change_mode_event,
+	// 		     CHANGE_MODE_EVENT_COOL | CHANGE_MODE_EVENT_OFF,
+	// 		     false, K_FOREVER);
+	// }
 
 	LOG_INF("****************************************");
 	LOG_INF("MAIN DONE");
