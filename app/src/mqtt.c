@@ -230,10 +230,10 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 	case MQTT_EVT_PUBLISH:
 		len = evt->param.publish.message.payload.len;
 
-		LOG_INF("MQTT publish received %d, %d bytes", evt->result, len);
-		LOG_INF(" id: %d, qos: %d", evt->param.publish.message_id,
+		LOG_INF("📨 MQTT publish received %d, %d bytes", evt->result, len);
+		LOG_INF("   ├── id: %d, qos: %d", evt->param.publish.message_id,
 			evt->param.publish.message.topic.qos);
-		LOG_INF(" topic: %s", evt->param.publish.message.topic.topic.utf8);
+		LOG_INF("   ├── topic: %s", evt->param.publish.message.topic.topic.utf8);
 
 		while (len) {
 			bytes_read = mqtt_read_publish_payload(&client_ctx,
@@ -246,7 +246,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			}
 
 			data[bytes_read] = '\0';
-			LOG_INF("   payload: %s", data);
+			LOG_INF("   └── payload: %s", data);
 			len -= bytes_read;
 		}
 
@@ -257,7 +257,6 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			if (strncmp(subscriptions[i].topic,
 				    evt->param.publish.message.topic.topic.utf8,
 				    evt->param.publish.message.topic.topic.size) == 0) {
-				LOG_INF("calling publish callback");
 				subscriptions[i].callback(data);
 				break;
 			}
