@@ -24,7 +24,32 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static double temperature_setpoint = -1;
 
+static void mode_change_callback(const char *mode)
+{
+	// if (temperature_setpoint < 0) {
+	// 	LOG_ERR("setpoint not set");
+	// 	return;
+	// }
+
+	if (strcmp(mode, "cool") == 0) {
+		LOG_DBG("❄️  mode %s", mode);
+		// drv_ir_send_on(pwm0, temperature_setpoint);
+		// k_sleep(K_SECONDS(1));
+		// drv_ir_send_ifeel(pwm0, current_temp);
+	}
+	else if (strcmp(mode, "off") == 0) {
+		LOG_DBG("🔌 mode %s", mode);
+		// drv_ir_send_on(pwm0, temperature_setpoint);
+	}
+}
+
+static void temperature_setpoint_change_callback(double setpoint)
+{
+	LOG_DBG("🌡️  setpoint: %f", setpoint);
+	temperature_setpoint = setpoint;
+}
 
 double get_current_temperature(const struct device *const dev)
 {
@@ -96,7 +121,7 @@ void main(void)
 	// Something else is not ready, not sure what
 	k_sleep(K_MSEC(100));
 
-	ha_start();
+	ha_start(mode_change_callback, temperature_setpoint_change_callback);
 
 	LOG_INF("****************************************");
 	LOG_INF("MAIN DONE");

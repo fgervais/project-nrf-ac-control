@@ -1,6 +1,7 @@
 #ifndef HA_H_
 #define HA_H_
 
-int ha_start(void);
+int ha_start(void (*mode_change_cb)(const char *mode),
+	     void (*temperature_setpoint_change_cb)(double setpoint));
 
 #endif /* HA_H_ */

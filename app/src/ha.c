@@ -5,6 +5,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #include <zephyr/drivers/hwinfo.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <app_version.h>
 
 #include "mqtt.h"
@@ -105,14 +106,28 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
 
+static void (*mode_change_callback)(const char *mode) = NULL;
+static void (*temperature_setpoint_change_callback)(float setpoint) = NULL;
+
 static void callback_sub_set_mode(const char *payload)
 {
-	LOG_DBG("I've been called back: %s", payload);
+	LOG_DBG("⚡ I've been called back: %s", payload);
+
+	if (mode_change_callback) {
+		mode_change_callback(payload);
+	}
 }
 
 static void callback_sub_set_temperature(const char *payload)
 {
-	LOG_DBG("I've been called back: %s", payload);
+	double temperature;
+
+	LOG_DBG("⚡ I've been called back: %s", payload);
+
+	if (temperature_setpoint_change_callback) {
+		temperature = atof(payload);
+		temperature_setpoint_change_callback(temperature);
+	}
 }
 
 static int get_device_id_string(char *id_string, size_t id_string_len)
@@ -188,10 +203,14 @@ int ha_send_current_temp(double current_temp)
 	return 0;
 }
 
-// int ha_start(mode_change_callback, temperature_setpoint_change_callback)
-int ha_start(void)
+int ha_start(void (*mode_change_cb)(const char *mode),
+	     void (*temperature_setpoint_change_cb)(double setpoint))
+// int ha_start(void)
 {
 	int ret;
+
+	mode_change_callback = mode_change_cb;
+	temperature_setpoint_change_callback = temperature_setpoint_change_cb;
 
 	ret = get_device_id_string(
 		device_id,
