@@ -3,12 +3,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/pm/device.h>
 
-#include <app_event_manager.h>
-
-#define MODULE main
-#include <caf/events/module_state_event.h>
-#include <caf/events/button_event.h>
-
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -17,16 +11,12 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #include "openthread.h"
 
 
-#define SLEEP_TIME_MS   10
-#define LED0_NODE DT_ALIAS(myled0alias)
-
 #define TMP116_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(ti_tmp116)
 
 #define CHANGE_MODE_EVENT_OFF		BIT(0)
 #define CHANGE_MODE_EVENT_COOL		BIT(1)
 
 
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static double temperature_setpoint = -1;
 
 static K_EVENT_DEFINE(change_mode_event);
@@ -81,7 +71,6 @@ double get_current_temperature(const struct device *const dev)
 
 void main(void)
 {
-	int ret;
 	double current_temp;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
@@ -89,21 +78,6 @@ void main(void)
 
 
 	LOG_INF("\n\n👟 MAIN START 👟\n");
-
-	if (app_event_manager_init()) {
-		LOG_ERR("Event manager not initialized");
-	} else {
-		module_set_state(MODULE_STATE_READY);
-	}
-
-	if (!device_is_ready(led.port)) {
-		return;
-	}
-
-	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	if (ret < 0) {
-		return;
-	}
 
 	__ASSERT(device_is_ready(tmp117), "TMP117 device not ready");
 	LOG_INF("Device %s - %p is ready", tmp117->name, tmp117);
@@ -140,23 +114,3 @@ void main(void)
 	LOG_INF("MAIN DONE");
 	LOG_INF("****************************************");
 }
-
-static bool event_handler(const struct app_event_header *eh)
-{
-	int ret;
-	const struct button_event *evt;
-
-	if (is_button_event(eh)) {
-		evt = cast_button_event(eh);
-
-		if (evt->pressed) {
-			LOG_INF("Pin Toggle");
-			ret = gpio_pin_toggle_dt(&led);
-		}
-	}
-
-	return true;
-}
-
-APP_EVENT_LISTENER(MODULE, event_handler);
-APP_EVENT_SUBSCRIBE(MODULE, button_event);
