@@ -15,11 +15,13 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 #define CHANGE_MODE_EVENT_OFF		BIT(0)
 #define CHANGE_MODE_EVENT_COOL		BIT(1)
+#define CHANGE_SETPOINT_EVENT		BIT(2)
 
 
 static double temperature_setpoint = -1;
+static bool current_state_off = true;
 
-static K_EVENT_DEFINE(change_mode_event);
+static K_EVENT_DEFINE(ac_control_events);
 
 static void mode_change_callback(const char *mode)
 {
@@ -30,22 +32,23 @@ static void mode_change_callback(const char *mode)
 
 	if (strcmp(mode, "cool") == 0) {
 		LOG_DBG("❄️  mode %s", mode);
-		k_event_post(&change_mode_event, CHANGE_MODE_EVENT_COOL);
+		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_COOL);
 		// drv_ir_send_on(pwm0, temperature_setpoint);
 		// k_sleep(K_SECONDS(1));
 		// drv_ir_send_ifeel(pwm0, current_temp);
 	}
 	else if (strcmp(mode, "off") == 0) {
 		LOG_DBG("🔌 mode %s", mode);
-		k_event_post(&change_mode_event, CHANGE_MODE_EVENT_OFF);
+		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_OFF);
 		// drv_ir_send_on(pwm0, temperature_setpoint);
 	}
 }
 
 static void temperature_setpoint_change_callback(double setpoint)
 {
-	LOG_DBG("🌡️  setpoint: %f", setpoint);
+	LOG_DBG("🌡️  setpoint: %g°C", setpoint);
 	temperature_setpoint = setpoint;
+	k_event_post(&ac_control_events, CHANGE_SETPOINT_EVENT);
 }
 
 double get_current_temperature(const struct device *const dev)
@@ -72,6 +75,7 @@ double get_current_temperature(const struct device *const dev)
 void main(void)
 {
 	double current_temp;
+	uint32_t events;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 	const struct device *const tmp117 = DEVICE_DT_GET(TMP116_NODE);
@@ -104,13 +108,58 @@ void main(void)
 
 	ha_start(mode_change_callback, temperature_setpoint_change_callback);
 
-	// while (1) {
-	// 	k_event_wait(&change_mode_event,
-	// 		     CHANGE_MODE_EVENT_COOL | CHANGE_MODE_EVENT_OFF,
-	// 		     false, K_FOREVER);
-	// }
+	k_timeout_t timeout;
 
-	LOG_INF("****************************************");
-	LOG_INF("MAIN DONE");
-	LOG_INF("****************************************");
+	LOG_INF("┌──────────────────────────────────────────────────────────┐");
+	LOG_INF("│ Entering main loop                                       │");
+	LOG_INF("└──────────────────────────────────────────────────────────┘");
+
+	while (1) {
+		if (current_state_off) {
+			timeout = K_FOREVER;
+		}
+		else {
+			timeout = K_MINUTES(3);
+		}
+
+
+		events = k_event_wait(&ac_control_events,
+			     CHANGE_SETPOINT_EVENT | CHANGE_MODE_EVENT_COOL,
+			     false, timeout);
+
+		k_event_set(&ac_control_events, 0);
+
+		if (events == 0) {
+			LOG_INF("📡 broadcast current temperature");
+
+			current_temp = get_current_temperature(tmp117);
+			LOG_INF("🌡️ current temp: %g°C", current_temp);
+
+			ha_send_current_temp(current_temp);
+			drv_ir_send_ifeel(pwm0, current_temp);
+			continue;
+		}
+
+		if (current_state_off && (events & CHANGE_MODE_EVENT_COOL)) {
+			LOG_INF("📡 turn ON");
+			drv_ir_send_on(pwm0, temperature_setpoint);
+			k_sleep(K_SECONDS(1));
+
+			current_temp = get_current_temperature(tmp117);
+			LOG_INF("🌡️  current temp: %g°C", current_temp);
+
+			drv_ir_send_ifeel(pwm0, current_temp);
+			current_state_off = false;
+		}
+		else if (!current_state_off && (events & CHANGE_MODE_EVENT_OFF)) {
+			LOG_INF("📡 turn OFF");
+			drv_ir_send_off(pwm0);
+			current_state_off = true;
+		}
+
+		if (events & CHANGE_SETPOINT_EVENT) {
+			LOG_INF("📡 change setpoint: %g°C", temperature_setpoint);
+			drv_ir_send_change_config(pwm0, temperature_setpoint);
+		}
+	}
 }

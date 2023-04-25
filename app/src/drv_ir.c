@@ -357,6 +357,11 @@ int drv_ir_send_on(const struct device *dev, uint8_t temperature_setpoint)
 	return 0;
 }
 
+int drv_ir_send_off(const struct device *dev)
+{
+	return 0;
+}
+
 int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 {
 	struct pwm_nrfx_data *data = dev->data;
@@ -377,6 +382,11 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 
 	LOG_INF("Transmission requested");
 
+	return 0;
+}
+
+int drv_ir_send_change_config(const struct device *dev, uint8_t temperature_setpoint)
+{
 	return 0;
 }
 
