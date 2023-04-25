@@ -223,7 +223,11 @@ int ha_start(void (*mode_change_cb)(const char *mode),
 	LOG_INF("Device ID: %s", ac_config.dev.identifiers);
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
-	mqtt_init(device_id);
+	ret = mqtt_init(device_id);
+	if (ret < 0) {
+		LOG_ERR("could initialize MQTT");
+		return ret;
+	}
 
 	LOG_INF("✏️  send discovery ✏️");
 	ha_send_discovery();

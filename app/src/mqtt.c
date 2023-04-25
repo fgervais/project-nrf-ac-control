@@ -2,6 +2,8 @@
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/watchdog.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/random/rand32.h>
@@ -44,6 +46,9 @@ static struct k_work_delayable keepalive_work;
 static struct zsock_addrinfo hints;
 static struct zsock_addrinfo *haddr;
 #endif
+
+static const struct device *wdt;
+static int wdt_channel_id;
 
 // static K_SEM_DEFINE(mqtt_start, 0, 1);
 
@@ -261,6 +266,8 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 
 	case MQTT_EVT_PINGRESP:
 		LOG_DBG("PINGRESP");
+		LOG_DBG("🦴 feed watchdog");
+		wdt_feed(wdt, wdt_channel_id);
 		break;
 
 	default:
@@ -377,9 +384,8 @@ static void keepalive(struct k_work *work)
 	}
 
 	if (client_ctx.unacked_ping) {
-		LOG_DBG("Previous MQTT ping not acknowledged");
-		// return -ECONNRESET;
-		return;
+		LOG_DBG("🤔 MQTT ping not acknowledged: %d",
+			client_ctx.unacked_ping);
 	}
 
 	rc = mqtt_ping(&client_ctx);
@@ -734,6 +740,41 @@ static int connect_to_server(void)
 // 	return 0;
 // }
 
+static int watchdog_init(void)
+{
+	int err;
+	
+	wdt = DEVICE_DT_GET(DT_ALIAS(watchdog0));
+
+	if (!device_is_ready(wdt)) {
+		LOG_ERR("%s: device not ready", wdt->name);
+		return -ENODEV;
+	}
+
+	struct wdt_timeout_cfg wdt_config = {
+		.window.min = 0,
+		.window.max = 3 * 60 * MSEC_PER_SEC,
+		.callback = NULL,
+		.flags = WDT_FLAG_RESET_SOC,
+	};
+
+	wdt_channel_id = wdt_install_timeout(wdt, &wdt_config);
+	if (wdt_channel_id < 0) {
+		LOG_ERR("watchdog install error");
+		return wdt_channel_id;
+	}
+
+	err = wdt_setup(wdt, WDT_OPT_PAUSE_HALTED_BY_DBG);
+	if (err < 0) {
+		LOG_ERR("watchdog setup error");
+		return 0;
+	}
+
+	LOG_DBG("🐶 watchdog started!");
+
+	return 0;
+}
+
 int mqtt_publish_current_temp(double current_temp)
 {
 	return 0;
@@ -803,7 +844,15 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 
 int mqtt_init(const char *dev_id)
 {
+	int ret;
+
 	device_id = dev_id;
+
+	ret = watchdog_init();
+	if (ret < 0) {
+		LOG_ERR("could not init watchdog");
+		return ret;
+	}
 
 	return 0;
 }
