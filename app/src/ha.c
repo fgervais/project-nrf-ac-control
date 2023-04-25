@@ -35,6 +35,7 @@ struct config {
 	const char *temperature_command_topic;
 	const char *temperature_current_topic;
 	int precision;
+	bool retain;
 	struct device dev;
 };
 
@@ -57,6 +58,7 @@ static struct config ac_config = {
 	.temperature_command_topic = "~/temperature/set",
 	.temperature_current_topic = "~/temperature/current",
 	.precision = 1,
+	.retain = true,
 	.dev = {
 		.identifiers = device_id,
 		.name = "Split Air Conditioner",
@@ -99,6 +101,7 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_current_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(struct config, retain,			JSON_TOK_TRUE),
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
 };
 
