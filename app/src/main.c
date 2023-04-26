@@ -124,7 +124,9 @@ void main(void)
 
 
 		events = k_event_wait(&ac_control_events,
-			     CHANGE_SETPOINT_EVENT | CHANGE_MODE_EVENT_COOL,
+			     (CHANGE_SETPOINT_EVENT |
+			      CHANGE_MODE_EVENT_COOL |
+			      CHANGE_MODE_EVENT_OFF),
 			     false, timeout);
 
 		k_event_set(&ac_control_events, 0);
