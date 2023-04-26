@@ -240,7 +240,7 @@ static void insert_zero_symbol(uint16_t **seq)
 	*seq += ARRAY_SIZE(NEC_ZERO);
 }
 
-static void drv_ir_binary_to_symbol(uint32_t val, size_t len, uint16_t **seq)
+static void binary_to_symbol(uint32_t val, size_t len, uint16_t **seq)
 {
 	uint32_t local;
 
@@ -261,10 +261,10 @@ static void drv_ir_binary_to_symbol(uint32_t val, size_t len, uint16_t **seq)
 	}
 }
 
-static uint16_t drv_ir_encode_frame(const struct device *dev,
-				    const union drv_ir_frame *frame,
-				    const union drv_ir_ext_frame *ext_frame,
-				    const uint16_t *buf)
+static uint16_t encode_frame(const struct device *dev,
+			     const union drv_ir_frame *frame,
+			     const union drv_ir_ext_frame *ext_frame,
+			     const uint16_t *buf)
 {
 	uint16_t *seq;
 	int i;
@@ -274,12 +274,12 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 	seq = data->seq_values;
 	insert_start_symbol(&seq);
 
-	drv_ir_binary_to_symbol(data->frame.content, FRAME_BITS, &seq);
+	binary_to_symbol(data->frame.content, FRAME_BITS, &seq);
 	insert_trailing_sequence(&seq);
 
 	insert_ext_frame_space(&seq);
 
-	drv_ir_binary_to_symbol(data->ext_frame.content, EXT_FRAME_BITS, &seq);
+	binary_to_symbol(data->ext_frame.content, EXT_FRAME_BITS, &seq);
 
 	for (i = 0; i < NEC_GUARD_ZEROS; i++)
 	{
@@ -289,9 +289,9 @@ static uint16_t drv_ir_encode_frame(const struct device *dev,
 	return (uint16_t)(seq - data->seq_values);
 }
 
-static uint16_t drv_ir_encode_ifeel_frame(const struct device *dev,
-					  const union drv_ir_ifeel_frame *ifeel_frame,
-					  const uint16_t *buf)
+static uint16_t encode_ifeel_frame(const struct device *dev,
+				   const union drv_ir_ifeel_frame *ifeel_frame,
+				   const uint16_t *buf)
 {
 	uint16_t *seq;
 	int i;
@@ -301,7 +301,7 @@ static uint16_t drv_ir_encode_ifeel_frame(const struct device *dev,
 	seq = data->seq_values;
 	insert_ifeel_start_symbol(&seq);
 
-	drv_ir_binary_to_symbol(data->ifeel_frame.content, IFEEL_FRAME_BITS, &seq);
+	binary_to_symbol(data->ifeel_frame.content, IFEEL_FRAME_BITS, &seq);
 	insert_trailing_sequence(&seq);
 
 	for (i = 0; i < NEC_GUARD_ZEROS; i++)
@@ -312,7 +312,7 @@ static uint16_t drv_ir_encode_ifeel_frame(const struct device *dev,
 	return (uint16_t)(seq - data->seq_values);
 }
 
-static int drv_ir_transmit_sequence(const struct device *dev)
+static int transmit_sequence(const struct device *dev)
 {
 	const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
@@ -351,13 +351,13 @@ static int send_frame(const struct device *dev)
 	LOG_INF("Frame: %08x", data->frame.content);
 	LOG_INF("Extended frame: %08x", data->ext_frame.content);
 
-	data->seq.length = drv_ir_encode_frame(
+	data->seq.length = encode_frame(
 		dev, &data->frame, &data->ext_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
 
-	drv_ir_transmit_sequence(dev);
+	transmit_sequence(dev);
 
 	LOG_INF("Transmission requested");
 
@@ -408,13 +408,13 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 
 	LOG_INF("Ifeel frame: %08x", data->ifeel_frame.content);
 
-	data->seq.length = drv_ir_encode_ifeel_frame(
+	data->seq.length = encode_ifeel_frame(
 		dev, &data->ifeel_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
 
-	drv_ir_transmit_sequence(dev);
+	transmit_sequence(dev);
 
 	LOG_INF("Transmission requested");
 
