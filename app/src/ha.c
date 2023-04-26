@@ -134,7 +134,6 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 {
 	uint8_t dev_id[DEVICE_ID_BYTE_SIZE];
 	ssize_t length;
-	int ret;
 
 	length = hwinfo_get_device_id(dev_id, sizeof(dev_id));
 
@@ -146,20 +145,13 @@ static int get_device_id_string(char *id_string, size_t id_string_len)
 		return length;
 	}
 
-	ret = bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len);
-	LOG_DBG("bin2hex(): %d", ret);
+	bin2hex(dev_id, ARRAY_SIZE(dev_id), id_string, id_string_len);
 
 	return 0;
 }
 
 static int ha_subscribe_to_topics(void)
 {
-	// char mode_command_topic[strlen(ac_config.base_path)
-	// 			+ strlen(ac_config.mode_command_topic)];
-
-	// snprintf(mode_command_topic, sizeof(mode_command_topic),
-	// 	 "%s%s", ac_config.base_path, ac_config.mode_command_topic + 1);
-
 	mqtt_subscribe_to_topic(subs, ARRAY_SIZE(subs));
 
 	return 0;
@@ -220,7 +212,6 @@ int ha_send_current_temp(double current_temp)
 
 int ha_start(void (*mode_change_cb)(const char *mode),
 	     void (*temperature_setpoint_change_cb)(double setpoint))
-// int ha_start(void)
 {
 	int ret;
 
