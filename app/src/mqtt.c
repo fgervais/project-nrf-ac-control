@@ -16,17 +16,13 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 
 #define MQTT_BUFFER_SIZE	1024
-// #define MQTT_CLIENTID 		"zephyr_publisher"
 
 
-/* Buffers for MQTT client. */
 static uint8_t rx_buffer[MQTT_BUFFER_SIZE];
 static uint8_t tx_buffer[MQTT_BUFFER_SIZE];
 
-/* The mqtt client struct */
 static struct mqtt_client client_ctx;
 
-/* MQTT Broker details. */
 static struct sockaddr_storage broker;
 
 /* Socket Poll */
@@ -39,7 +35,6 @@ static bool mqtt_connected;
 static const struct mqtt_subscription *subscriptions;
 static size_t number_of_subscriptions;
 
-// static struct k_work_delayable pub_message;
 static struct k_work_delayable keepalive_work;
 
 #if defined(CONFIG_DNS_RESOLVER)
@@ -50,43 +45,14 @@ static struct zsock_addrinfo *haddr;
 static const struct device *wdt;
 static int wdt_channel_id;
 
-// static K_SEM_DEFINE(mqtt_start, 0, 1);
-
-/* Application TLS configuration details */
-// #define TLS_SNI_HOSTNAME CONFIG_SAMPLE_CLOUD_AZURE_HOSTNAME
-// #define APP_CA_CERT_TAG 1
-
-// static sec_tag_t m_sec_tags[] = {
-// 	APP_CA_CERT_TAG,
-// };
-
-// static uint8_t topic[] = "devices/" MQTT_CLIENTID "/messages/devicebound/#";
 
 static void mqtt_event_handler(struct mqtt_client *const client,
 			       const struct mqtt_evt *evt);
 static void keepalive(struct k_work *work);
-// static int poll_mqtt(void);
 
-// static int tls_init(void)
-// {
-// 	int err;
-
-// 	err = tls_credential_add(APP_CA_CERT_TAG, TLS_CREDENTIAL_CA_CERTIFICATE,
-// 				 ca_certificate, sizeof(ca_certificate));
-// 	if (err < 0) {
-// 		LOG_ERR("Failed to register public certificate: %d", err);
-// 		return err;
-// 	}
-
-// 	return err;
-// }
 
 static void prepare_fds(struct mqtt_client *client)
 {
-	// if (client->transport.type == MQTT_TRANSPORT_SECURE) {
-	// 	fds[0].fd = client->transport.tls.sock;
-	// }
-
 	fds[0].events = ZSOCK_POLLIN;
 	nfds = 1;
 }
@@ -132,15 +98,10 @@ static void broker_init(void)
 
 static void client_init(struct mqtt_client *client)
 {
-	// static struct mqtt_utf8 password;
-	// static struct mqtt_utf8 username;
-	// struct mqtt_sec_config *tls_config;
-
 	mqtt_client_init(client);
 
 	broker_init();
 
-	/* MQTT client configuration */
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
 
@@ -152,41 +113,14 @@ static void client_init(struct mqtt_client *client)
 	client->password = NULL;
 	client->user_name = NULL;
 
-	// password.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD;
-	// password.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_PASSWORD);
-
-	// client->password = &password;
-
-	// username.utf8 = (uint8_t *)CONFIG_SAMPLE_CLOUD_AZURE_USERNAME;
-	// username.size = strlen(CONFIG_SAMPLE_CLOUD_AZURE_USERNAME);
-
-	// client->user_name = &username;
-
 	client->protocol_version = MQTT_VERSION_3_1_1;
 
-	/* MQTT buffers configuration */
 	client->rx_buf = rx_buffer;
 	client->rx_buf_size = sizeof(rx_buffer);
 	client->tx_buf = tx_buffer;
 	client->tx_buf_size = sizeof(tx_buffer);
 
-	/* MQTT transport configuration */
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
-
-	// tls_config = &client->transport.tls.config;
-
-	// tls_config->peer_verify = TLS_PEER_VERIFY_REQUIRED;
-	// tls_config->cipher_list = NULL;
-	// tls_config->sec_tag_list = m_sec_tags;
-	// tls_config->sec_tag_count = ARRAY_SIZE(m_sec_tags);
-	// tls_config->hostname = TLS_SNI_HOSTNAME;
-
-// #if defined(CONFIG_SOCKS)
-// 	mqtt_client_set_proxy(client, &socks5_proxy,
-// 			      socks5_proxy.sa_family == AF_INET ?
-// 			      sizeof(struct sockaddr_in) :
-// 			      sizeof(struct sockaddr_in6));
-// #endif
 }
 
 static void mqtt_event_handler(struct mqtt_client *const client,
@@ -293,84 +227,7 @@ static void subscribe(struct mqtt_client *client, const char *topic)
 	if (err) {
 		LOG_ERR("Failed on topic %s", topic);
 	}
-
-	// poll_mqtt();
 }
-
-// static int publish(struct mqtt_client *client, enum mqtt_qos qos)
-// {
-// 	char payload[] = "{id=123}";
-// 	char topic[] = "devices/" MQTT_CLIENTID "/messages/events/";
-// 	uint8_t len = strlen(topic);
-// 	struct mqtt_publish_param param;
-
-// 	param.message.topic.qos = qos;
-// 	param.message.topic.topic.utf8 = (uint8_t *)topic;
-// 	param.message.topic.topic.size = len;
-// 	param.message.payload.data = payload;
-// 	param.message.payload.len = strlen(payload);
-// 	param.message_id = sys_rand32_get();
-// 	param.dup_flag = 0U;
-// 	param.retain_flag = 0U;
-
-// 	return mqtt_publish(client, &param);
-// }
-
-// static int poll_mqtt(void)
-// {
-// 	int rc;
-
-// 	if (!mqtt_connected) {
-// 		LOG_WRN("not connected");
-// 		return -ENOTCONN;
-// 	}
-
-// 	if (wait(1000)) {
-// 		rc = mqtt_input(&client_ctx);
-// 		if (rc < 0) {
-// 			LOG_ERR("mqtt_input (%d)", rc);
-// 			return rc;
-// 		}
-// 	}
-
-// 	return 0;
-
-// 	// while (mqtt_connected) {
-// 	// 	rc = wait(SYS_FOREVER_MS);
-// 	// 	if (rc > 0) {
-// 	// 		mqtt_input(&client_ctx);
-// 	// 	}
-// 	// }
-// }
-
-/* Random time between 10 - 15 seconds
- * If you prefer to have this value more than CONFIG_MQTT_KEEPALIVE,
- * then keep the application connection live by calling mqtt_live()
- * in regular intervals.
- */
-// static uint8_t timeout_for_publish(void)
-// {
-// 	return (10 + sys_rand32_get() % 5);
-// }
-
-// static void publish_timeout(struct k_work *work)
-// {
-// 	int rc;
-
-// 	if (!mqtt_connected) {
-// 		return;
-// 	}
-
-// 	rc = publish(&client_ctx, MQTT_QOS_1_AT_LEAST_ONCE);
-// 	if (rc) {
-// 		LOG_ERR("mqtt_publish ERROR");
-// 		goto end;
-// 	}
-
-// 	LOG_DBG("mqtt_publish OK");
-// end:
-// 	k_work_reschedule(&pub_message, K_SECONDS(timeout_for_publish()));
-// }
 
 static void keepalive(struct k_work *work)
 {
@@ -394,12 +251,6 @@ static void keepalive(struct k_work *work)
 		return;
 	}
 
-	// rc = poll_mqtt();
-	// if (rc < 0) {
-	// 	LOG_ERR("poll_mqtt (%d)", rc);
-	// 	return;
-	// }
-
 	k_work_reschedule(&keepalive_work, K_SECONDS(client_ctx.keepalive));
 }
 
@@ -416,120 +267,6 @@ static void poll_thread_function(void)
 			}
 		}
 	}
-
-
-
-
-
-
-
-
-// 	int err;
-// 	struct pollfd fds[1];
-// 	struct aws_iot_evt aws_iot_evt = {
-// 		.type = AWS_IOT_EVT_DISCONNECTED,
-// 		.data = { .err = AWS_IOT_DISCONNECT_MISC}
-// 	};
-
-// start:
-// 	k_sem_take(&connection_poll_sem, K_FOREVER);
-// 	atomic_set(&connection_poll_active, 1);
-
-// 	aws_iot_evt.data.err = AWS_IOT_CONNECT_RES_SUCCESS;
-// 	aws_iot_evt.type = AWS_IOT_EVT_CONNECTING;
-// 	aws_iot_notify_event(&aws_iot_evt);
-
-// 	err = connect_client(NULL);
-// 	if (err != AWS_IOT_CONNECT_RES_SUCCESS) {
-// 		aws_iot_evt.data.err = err;
-// 		aws_iot_evt.type = AWS_IOT_EVT_CONNECTING;
-// 		aws_iot_notify_event(&aws_iot_evt);
-// 		goto reset;
-// 	}
-
-// 	LOG_DBG("AWS IoT broker connection request sent");
-
-// 	fds[0].fd = client.transport.tls.sock;
-// 	fds[0].events = POLLIN;
-
-// 	aws_iot_evt.type = AWS_IOT_EVT_DISCONNECTED;
-// 	atomic_set(&aws_iot_disconnected, 0);
-
-// 	while (true) {
-// 		err = poll(fds, ARRAY_SIZE(fds), aws_iot_keepalive_time_left());
-
-// 		/* If poll returns 0 the timeout has expired. */
-// 		if (err == 0) {
-// 			err = aws_iot_ping();
-// 			if (err) {
-// 				LOG_ERR("Cloud MQTT keepalive ping failed: %d", err);
-// 				aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
-// 				break;
-// 			}
-// 			continue;
-// 		}
-
-// 		if ((fds[0].revents & POLLIN) == POLLIN) {
-// 			err = aws_iot_input();
-// 			if (err) {
-// 				LOG_ERR("Cloud MQTT input error: %d", err);
-// 				if (err == -ENOTCONN) {
-// 					break;
-// 				}
-// 			}
-
-// 			if (atomic_get(&aws_iot_disconnected) == 1) {
-// 				LOG_DBG("The cloud socket is already closed.");
-// 				break;
-// 			}
-
-// 			continue;
-// 		}
-
-// 		if (err < 0) {
-// 			LOG_ERR("poll() returned an error: %d", err);
-// 			aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
-// 			break;
-// 		}
-
-// 		if ((fds[0].revents & POLLNVAL) == POLLNVAL) {
-// 			LOG_DBG("Socket error: POLLNVAL");
-// 			LOG_DBG("The cloud socket was unexpectedly closed.");
-// 			aws_iot_evt.data.err =
-// 					AWS_IOT_DISCONNECT_INVALID_REQUEST;
-// 			break;
-// 		}
-
-// 		if ((fds[0].revents & POLLHUP) == POLLHUP) {
-// 			LOG_DBG("Socket error: POLLHUP");
-// 			LOG_DBG("Connection was closed by the cloud.");
-// 			aws_iot_evt.data.err =
-// 					AWS_IOT_DISCONNECT_CLOSED_BY_REMOTE;
-// 			break;
-// 		}
-
-// 		if ((fds[0].revents & POLLERR) == POLLERR) {
-// 			LOG_DBG("Socket error: POLLERR");
-// 			LOG_DBG("Cloud connection was unexpectedly closed.");
-// 			aws_iot_evt.data.err = AWS_IOT_DISCONNECT_MISC;
-// 			break;
-// 		}
-// 	}
-
-// 	/* Upon a socket error, disconnect the client and notify the
-// 	 * application. If the client has already been disconnected this has
-// 	 * occurred via a MQTT DISCONNECT event and the application has
-// 	 * already been notified.
-// 	 */
-// 	if (atomic_get(&aws_iot_disconnected) == 0) {
-// 		aws_iot_notify_event(&aws_iot_evt);
-// 		aws_iot_disconnect();
-// 	}
-
-// reset:
-// 	atomic_set(&connection_poll_active, 0);
-// 	k_sem_take(&connection_poll_sem, K_NO_WAIT);
-// 	goto start;
 }
 
 K_THREAD_DEFINE(poll_thread, CONFIG_APP_POLL_THREAD_STACK_SIZE,
@@ -566,9 +303,6 @@ static int try_to_connect(struct mqtt_client *client)
 		mqtt_input(client);
 
 		if (mqtt_connected) {
-			// subscribe(client);
-			// k_work_reschedule(&pub_message,
-			// 		  K_SECONDS(timeout_for_publish()));
 			k_work_reschedule(&keepalive_work,
 					  K_SECONDS(client->keepalive));
 			k_thread_start(poll_thread);
@@ -627,7 +361,6 @@ static int get_mqtt_broker_addrinfo(void)
 }
 #endif
 
-// static void connect_to_cloud_and_publish(void)
 static int connect_to_server(void)
 {
 	int rc = -EINVAL;
@@ -648,97 +381,6 @@ static int connect_to_server(void)
 
 	return 0;
 }
-
-/* DHCP tries to renew the address after interface is down and up.
- * If DHCPv4 address renewal is success, then it doesn't generate
- * any event. We have to monitor this way.
- * If DHCPv4 attempts exceeds maximum number, it will delete iface
- * address and attempts for new request. In this case we can rely
- * on IPV4_ADDR_ADD event.
- */
-// #if defined(CONFIG_NET_DHCPV4)
-// static void check_network_connection(struct k_work *work)
-// {
-// 	struct net_if *iface;
-
-// 	if (mqtt_connected) {
-// 		return;
-// 	}
-
-// 	iface = net_if_get_default();
-// 	if (!iface) {
-// 		goto end;
-// 	}
-
-// 	if (iface->config.dhcpv4.state == NET_DHCPV4_BOUND) {
-// 		k_sem_give(&mqtt_start);
-// 		return;
-// 	}
-
-// 	LOG_INF("waiting for DHCP to acquire addr");
-
-// end:
-// 	k_work_reschedule(&check_network_conn, K_SECONDS(3));
-// }
-// #endif
-
-// #if defined(CONFIG_NET_DHCPV4)
-// static void abort_mqtt_connection(void)
-// {
-// 	if (mqtt_connected) {
-// 		mqtt_connected = false;
-// 		mqtt_abort(&client_ctx);
-// 		k_work_cancel_delayable(&pub_message);
-// 	}
-// }
-
-// static void l4_event_handler(struct net_mgmt_event_callback *cb,
-// 			     uint32_t mgmt_event, struct net_if *iface)
-// {
-// 	if ((mgmt_event & L4_EVENT_MASK) != mgmt_event) {
-// 		return;
-// 	}
-
-// 	if (mgmt_event == NET_EVENT_L4_CONNECTED) {
-// 		/* Wait for DHCP to be back in BOUND state */
-// 		k_work_reschedule(&check_network_conn, K_SECONDS(3));
-
-// 		return;
-// 	}
-
-// 	if (mgmt_event == NET_EVENT_L4_DISCONNECTED) {
-// 		abort_mqtt_connection();
-// 		k_work_cancel_delayable(&check_network_conn);
-
-// 		return;
-// 	}
-// }
-// #endif
-
-// int main(void)
-// {
-// 	int rc;
-
-// 	LOG_DBG("Waiting for network to setup...");
-
-// 	// rc = tls_init();
-// 	// if (rc) {
-// 	// 	return 0;
-// 	// }
-
-// 	// k_work_init_delayable(&pub_message, publish_timeout);
-
-// // #if defined(CONFIG_NET_DHCPV4)
-// // 	k_work_init_delayable(&check_network_conn, check_network_connection);
-
-// // 	net_mgmt_init_event_callback(&l4_mgmt_cb, l4_event_handler,
-// // 				     L4_EVENT_MASK);
-// // 	net_mgmt_add_event_callback(&l4_mgmt_cb);
-// // #endif
-
-// 	// connect_to_cloud_and_publish();
-// 	return 0;
-// }
 
 static int watchdog_init(void)
 {
@@ -772,11 +414,6 @@ static int watchdog_init(void)
 
 	LOG_DBG("🐶 watchdog started!");
 
-	return 0;
-}
-
-int mqtt_publish_current_temp(double current_temp)
-{
 	return 0;
 }
 
