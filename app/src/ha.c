@@ -193,13 +193,28 @@ static int ha_send_discovery(void)
 
 	LOG_DBG("payload: %s", json_config);
 
-	mqtt_publish_discovery(json_config, discovery_topic);
+	mqtt_publish_to_topic(discovery_topic, json_config, true);
 
 	return 0;
 }
 
 int ha_send_current_temp(double current_temp)
 {
+	char topic[strlen(ac_config.base_path)
+		   + strlen(ac_config.temperature_current_topic)];
+	char temp_string[16];
+
+	snprintf(topic, sizeof(topic),
+		 "%s%s",
+		 ac_config.base_path,
+		 ac_config.temperature_current_topic + 1);
+
+	snprintf(temp_string, sizeof(temp_string),
+		 "%g",
+		 current_temp);
+
+	mqtt_publish_to_topic(topic, temp_string, false);
+
 	return 0;
 }
 

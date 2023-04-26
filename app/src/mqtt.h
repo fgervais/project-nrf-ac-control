@@ -6,7 +6,7 @@ struct mqtt_subscription {
 	void (*callback)(const char *);
 };
 
-int mqtt_publish_discovery(char *json_config, const char *topic);
+int mqtt_publish_to_topic(const char *topic, char *payload, bool retain);
 int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 			    size_t nb_of_subs);
 int mqtt_init(const char *dev_id);

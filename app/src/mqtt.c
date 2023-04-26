@@ -780,22 +780,22 @@ int mqtt_publish_current_temp(double current_temp)
 	return 0;
 }
 
-int mqtt_publish_discovery(char *json_config, const char *topic)
+int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
 {
-	// char payload[] = "{id=123}";
-	// char topic[] = "devices/" MQTT_CLIENTID "/messages/events/";
-	// uint8_t len = strlen(topic);
 	int ret;
 	struct mqtt_publish_param param;
+
+	LOG_DBG("📤 %s", topic);
+	LOG_DBG("   └── payload: %s", payload);
 
 	param.message.topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 	param.message.topic.topic.utf8 = (uint8_t *)topic;
 	param.message.topic.topic.size = strlen(topic);
-	param.message.payload.data = json_config;
-	param.message.payload.len = strlen(json_config);
+	param.message.payload.data = payload;
+	param.message.payload.len = strlen(payload);
 	param.message_id = sys_rand32_get();
 	param.dup_flag = 0U;
-	param.retain_flag = 1U;
+	param.retain_flag = retain ? 1U : 0U;
 
 	if (!mqtt_connected) {
 		ret = connect_to_server();
@@ -809,12 +809,6 @@ int mqtt_publish_discovery(char *json_config, const char *topic)
 		LOG_ERR("mqtt_publish (%d)", ret);
 		return ret;
 	}
-
-	// ret = poll_mqtt();
-	// if (ret < 0) {
-	// 	LOG_ERR("poll_mqtt (%d)", ret);
-	// 	return ret;
-	// }
 
 	return 0;
 }
