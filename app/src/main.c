@@ -25,22 +25,13 @@ static K_EVENT_DEFINE(ac_control_events);
 
 static void mode_change_callback(const char *mode)
 {
-	// if (temperature_setpoint < 0) {
-	// 	LOG_ERR("setpoint not set");
-	// 	return;
-	// }
-
 	if (strcmp(mode, "cool") == 0) {
 		LOG_DBG("❄️  mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_COOL);
-		// drv_ir_send_on(pwm0, temperature_setpoint);
-		// k_sleep(K_SECONDS(1));
-		// drv_ir_send_ifeel(pwm0, current_temp);
 	}
 	else if (strcmp(mode, "off") == 0) {
 		LOG_DBG("🔌 mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_OFF);
-		// drv_ir_send_on(pwm0, temperature_setpoint);
 	}
 }
 
@@ -86,18 +77,6 @@ void main(void)
 	__ASSERT(device_is_ready(tmp117), "TMP117 device not ready");
 	LOG_INF("Device %s - %p is ready", tmp117->name, tmp117);
 
-	// while(1) {
-		// LOG_INF("────────────────────────────────────────");
-		// current_temp = get_current_temperature(tmp117);
-
-		// LOG_INF("🌡️ temp is %g°C", current_temp);
-
-		// drv_ir_send_on(pwm0);
-		// k_sleep(K_SECONDS(1));
-		// drv_ir_send_ifeel(pwm0, current_temp);
-		// k_sleep(K_SECONDS(5));
-	// }
-
 	openthread_enable_ready_flag();
 
 	while (!openthread_ready)
@@ -108,11 +87,11 @@ void main(void)
 
 	ha_start(mode_change_callback, temperature_setpoint_change_callback);
 
-	k_timeout_t timeout;
-
 	LOG_INF("┌──────────────────────────────────────────────────────────┐");
 	LOG_INF("│ Entering main loop                                       │");
 	LOG_INF("└──────────────────────────────────────────────────────────┘");
+
+	k_timeout_t timeout;
 
 	while (1) {
 		if (current_state_off) {
