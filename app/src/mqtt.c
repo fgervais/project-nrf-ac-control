@@ -753,7 +753,7 @@ static int watchdog_init(void)
 
 	struct wdt_timeout_cfg wdt_config = {
 		.window.min = 0,
-		.window.max = 3 * 60 * MSEC_PER_SEC,
+		.window.max = (3 * 60 + 40) * MSEC_PER_SEC,
 		.callback = NULL,
 		.flags = WDT_FLAG_RESET_SOC,
 	};
