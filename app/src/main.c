@@ -26,7 +26,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 static double temperature_setpoint = -1;
 static bool current_state_off = true;
-static bool enabled = false;
 
 static K_EVENT_DEFINE(ac_control_events);
 
@@ -70,13 +69,22 @@ double get_current_temperature(const struct device *const dev)
 	return sensor_value_to_double(&temp_value);
 }
 
+bool get_current_device_state(const struct device *port, gpio_pin_t pin)
+{
+	return (bool)gpio_pin_get_raw(port, pin);
+}
+
 void main(void)
 {
-	int ret;
 	double current_temp;
 	uint32_t events;
+	bool enabled;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
+	const struct device *gpios[] = {
+		DEVICE_DT_GET(DT_NODELABEL(gpio0)),
+		DEVICE_DT_GET(DT_NODELABEL(gpio1)),
+	};
 	const struct device *const tmp117 = DEVICE_DT_GET(TMP116_NODE);
 
 
@@ -100,6 +108,16 @@ void main(void)
 	k_sleep(K_MSEC(100));
 
 	ha_start(mode_change_callback, temperature_setpoint_change_callback);
+
+	enabled = get_current_device_state(gpios[CONFIG_APP_STATE_INPUT_PORT],
+					   CONFIG_APP_STATE_INPUT_PIN);
+	if (enabled) {
+		LOG_DBG("🟩🟩🟩 (enabled)");
+	}
+	else {
+		LOG_DBG("💤💤💤 (disabled)");
+	}
+	ha_send_current_state(enabled);
 
 	LOG_INF("┌──────────────────────────────────────────────────────────┐");
 	LOG_INF("│ Entering main loop                                       │");
@@ -162,7 +180,6 @@ void main(void)
 
 static bool event_handler(const struct app_event_header *eh)
 {
-	int ret;
 	const struct button_event *evt;
 
 	if (is_button_event(eh)) {

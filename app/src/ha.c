@@ -210,6 +210,26 @@ int ha_send_current_temp(double current_temp)
 	return 0;
 }
 
+int ha_send_current_state(bool enabled)
+{
+	// char topic[strlen(ac_config.base_path)
+	// 	   + strlen(ac_config.temperature_current_topic)];
+	// char temp_string[16];
+
+	// snprintf(topic, sizeof(topic),
+	// 	 "%s%s",
+	// 	 ac_config.base_path,
+	// 	 ac_config.temperature_current_topic + 1);
+
+	// snprintf(temp_string, sizeof(temp_string),
+	// 	 "%d",
+	// 	 enabled);
+
+	// mqtt_publish_to_topic(topic, temp_string, false);
+
+	return 0;
+}
+
 int ha_start(void (*mode_change_cb)(const char *mode),
 	     void (*temperature_setpoint_change_cb)(double setpoint))
 {
