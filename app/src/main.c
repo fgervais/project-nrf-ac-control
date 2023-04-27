@@ -17,9 +17,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #include "openthread.h"
 
 
-#define SLEEP_TIME_MS   10
-#define LED0_NODE DT_ALIAS(myled0alias)
-
 #define TMP116_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(ti_tmp116)
 
 #define CHANGE_MODE_EVENT_OFF		BIT(0)
@@ -27,9 +24,9 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #define CHANGE_SETPOINT_EVENT		BIT(2)
 
 
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static double temperature_setpoint = -1;
 static bool current_state_off = true;
+static bool enabled = false;
 
 static K_EVENT_DEFINE(ac_control_events);
 
@@ -89,15 +86,6 @@ void main(void)
 		LOG_ERR("Event manager not initialized");
 	} else {
 		module_set_state(MODULE_STATE_READY);
-	}
-
-	if (!device_is_ready(led.port)) {
-		return;
-	}
-
-	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	if (ret < 0) {
-		return;
 	}
 
 	__ASSERT(device_is_ready(tmp117), "TMP117 device not ready");
@@ -181,8 +169,7 @@ static bool event_handler(const struct app_event_header *eh)
 		evt = cast_button_event(eh);
 
 		if (evt->pressed) {
-			LOG_INF("Pin Toggle");
-			ret = gpio_pin_toggle_dt(&led);
+			LOG_INF("Pressed");
 		}
 	}
 

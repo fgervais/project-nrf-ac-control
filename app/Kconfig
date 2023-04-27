@@ -24,4 +24,16 @@ config APP_POLL_THREAD_STACK_SIZE
 	help
 	  Poll thread stack size.
 
+config APP_STATE_INPUT_PORT
+	int "GPIO port number for state input"
+	default 0
+	help
+	  GPIO port number for state input.
+
+config APP_STATE_INPUT_PIN
+	int "GPIO pin number for state input"
+	default 21
+	help
+	  GPIO pin number for state input.
+
 source "Kconfig.zephyr"
