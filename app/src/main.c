@@ -174,10 +174,10 @@ void main(void)
 
 		if (events & CHANGE_STATE_EVENT) {
 			if (enabled) {
-				LOG_DBG("🟩🟩🟩 (enabled)");
+				LOG_DBG("✅ enabled");
 			}
 			else {
-				LOG_DBG("💤💤💤 (disabled)");
+				LOG_DBG("❌ disabled");
 			}
 			ha_send_current_state(enabled);
 		}
