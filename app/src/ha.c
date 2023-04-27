@@ -35,6 +35,7 @@ struct config {
 	const char *mode_command_template;
 	const char *temperature_command_topic;
 	const char *temperature_current_topic;
+	const char *availability_topic;
 	int precision;
 	bool retain;
 	struct device dev;
@@ -58,6 +59,7 @@ static struct config ac_config = {
 	.mode_command_template = "{{ value if value=='off' else 'on' }}",
 	.temperature_command_topic = "~/temperature/set",
 	.temperature_current_topic = "~/temperature/current",
+	.availability_topic = "~/available",
 	.precision = 1,
 	.retain = true,
 	.dev = {
@@ -101,6 +103,7 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_template,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_current_topic,	JSON_TOK_STRING),
+	JSON_OBJ_DESCR_PRIM(struct config, availability_topic,		JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_PRIM(struct config, retain,			JSON_TOK_TRUE),
 	JSON_OBJ_DESCR_OBJECT(struct config, dev, device_descr),
@@ -212,20 +215,15 @@ int ha_send_current_temp(double current_temp)
 
 int ha_send_current_state(bool enabled)
 {
-	// char topic[strlen(ac_config.base_path)
-	// 	   + strlen(ac_config.temperature_current_topic)];
-	// char temp_string[16];
+	char topic[strlen(ac_config.base_path)
+		   + strlen(ac_config.availability_topic)];
+	
+	snprintf(topic, sizeof(topic),
+		 "%s%s",
+		 ac_config.base_path,
+		 ac_config.availability_topic + 1);
 
-	// snprintf(topic, sizeof(topic),
-	// 	 "%s%s",
-	// 	 ac_config.base_path,
-	// 	 ac_config.temperature_current_topic + 1);
-
-	// snprintf(temp_string, sizeof(temp_string),
-	// 	 "%d",
-	// 	 enabled);
-
-	// mqtt_publish_to_topic(topic, temp_string, false);
+	mqtt_publish_to_topic(topic, enabled ? "online" : "offline", false);
 
 	return 0;
 }
