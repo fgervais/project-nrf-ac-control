@@ -22,10 +22,12 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #define CHANGE_MODE_EVENT_OFF		BIT(0)
 #define CHANGE_MODE_EVENT_COOL		BIT(1)
 #define CHANGE_SETPOINT_EVENT		BIT(2)
+#define CHANGE_STATE_EVENT		BIT(8)
 
 
 static double temperature_setpoint = -1;
 static bool current_state_off = true;
+static bool enabled;
 
 static K_EVENT_DEFINE(ac_control_events);
 
@@ -78,7 +80,6 @@ void main(void)
 {
 	double current_temp;
 	uint32_t events;
-	bool enabled;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 	const struct device *gpios[] = {
@@ -111,13 +112,7 @@ void main(void)
 
 	enabled = get_current_device_state(gpios[CONFIG_APP_STATE_INPUT_PORT],
 					   CONFIG_APP_STATE_INPUT_PIN);
-	if (enabled) {
-		LOG_DBG("🟩🟩🟩 (enabled)");
-	}
-	else {
-		LOG_DBG("💤💤💤 (disabled)");
-	}
-	ha_send_current_state(enabled);
+	k_event_post(&ac_control_events, CHANGE_STATE_EVENT);
 
 	LOG_INF("┌──────────────────────────────────────────────────────────┐");
 	LOG_INF("│ Entering main loop                                       │");
@@ -135,7 +130,8 @@ void main(void)
 
 
 		events = k_event_wait(&ac_control_events,
-			     (CHANGE_SETPOINT_EVENT |
+			     (CHANGE_STATE_EVENT |
+			      CHANGE_SETPOINT_EVENT |
 			      CHANGE_MODE_EVENT_COOL |
 			      CHANGE_MODE_EVENT_OFF),
 			     false, timeout);
@@ -175,6 +171,16 @@ void main(void)
 			LOG_INF("📡 change setpoint: %g°C", temperature_setpoint);
 			drv_ir_send_change_config(pwm0, temperature_setpoint);
 		}
+
+		if (events & CHANGE_STATE_EVENT) {
+			if (enabled) {
+				LOG_DBG("🟩🟩🟩 (enabled)");
+			}
+			else {
+				LOG_DBG("💤💤💤 (disabled)");
+			}
+			ha_send_current_state(enabled);
+		}
 	}
 }
 
@@ -185,9 +191,14 @@ static bool event_handler(const struct app_event_header *eh)
 	if (is_button_event(eh)) {
 		evt = cast_button_event(eh);
 
-		if (evt->pressed) {
-			LOG_INF("Pressed");
+		if (!evt->pressed) {
+			enabled = true;
 		}
+		else {
+			enabled = false;
+		}
+
+		k_event_post(&ac_control_events, CHANGE_STATE_EVENT);
 	}
 
 	return true;
