@@ -326,6 +326,8 @@ static int fill_on(const struct device *dev, uint8_t temperature_setpoint)
 {
 	struct pwm_nrfx_data *data = dev->data;
 
+	LOG_DBG("temperature setpoint: %d", temperature_setpoint);
+
 	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
 	data->frame.on = 1;
 	data->frame.oscillating = 1;

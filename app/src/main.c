@@ -163,7 +163,7 @@ void main(void)
 		}
 		else if (!current_state_off && (events & CHANGE_MODE_EVENT_OFF)) {
 			LOG_INF("📡 turn OFF");
-			drv_ir_send_off(pwm0);
+			drv_ir_send_off(pwm0, temperature_setpoint);
 			current_state_off = true;
 		}
 
