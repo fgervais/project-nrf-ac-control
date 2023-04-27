@@ -114,7 +114,7 @@ static void (*temperature_setpoint_change_callback)(double setpoint) = NULL;
 
 static void callback_sub_set_mode(const char *payload)
 {
-	LOG_DBG("⚡ I've been called back: %s", payload);
+	LOG_INF("⚡ I've been called back: %s", payload);
 
 	if (mode_change_callback) {
 		mode_change_callback(payload);
@@ -125,7 +125,7 @@ static void callback_sub_set_temperature(const char *payload)
 {
 	double temperature;
 
-	LOG_DBG("⚡ I've been called back: %s", payload);
+	LOG_INF("⚡ I've been called back: %s", payload);
 
 	if (temperature_setpoint_change_callback) {
 		temperature = atof(payload);
@@ -253,9 +253,9 @@ int ha_start(void (*mode_change_cb)(const char *mode),
 		return ret;
 	}
 
-	LOG_INF("✏️  send discovery ✏️");
+	LOG_INF("✏️  send discovery");
 	ha_send_discovery();
-	LOG_INF("✏️  subscribe to topics ✏️");
+	LOG_INF("✏️  subscribe to topics");
 	ha_subscribe_to_topics();
 
 	return 0;

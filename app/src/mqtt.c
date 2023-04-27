@@ -201,13 +201,13 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		break;
 
 	case MQTT_EVT_PINGRESP:
-		LOG_DBG("PINGRESP");
-		LOG_DBG("🦴 feed watchdog");
+		LOG_INF("PINGRESP");
+		LOG_INF("└── 🦴 feed watchdog");
 		wdt_feed(wdt, wdt_channel_id);
 		break;
 
 	default:
-		LOG_DBG("Unhandled MQTT event %d", evt->type);
+		LOG_WRN("Unhandled MQTT event %d", evt->type);
 		break;
 	}
 }
@@ -235,7 +235,7 @@ static void keepalive(struct k_work *work)
 {
 	int rc;
 
-	LOG_DBG("🤖 mqtt keepalive");
+	LOG_INF("🤖 mqtt keepalive");
 
 	if (!mqtt_connected) {
 		LOG_WRN("we are disconnected");
@@ -243,7 +243,7 @@ static void keepalive(struct k_work *work)
 	}
 
 	if (client_ctx.unacked_ping) {
-		LOG_DBG("🤔 MQTT ping not acknowledged: %d",
+		LOG_WRN("🤔 MQTT ping not acknowledged: %d",
 			client_ctx.unacked_ping);
 	}
 
@@ -347,7 +347,7 @@ static int get_mqtt_broker_addrinfo(void)
 			    &((const struct sockaddr_in6 *)haddr->ai_addr)->sin6_addr,
 			    atxt, sizeof(atxt));
 
-			LOG_INF("address: %s", atxt);
+			LOG_INF("└── address: %s", atxt);
 
 			return 0;
 		}
@@ -414,7 +414,7 @@ static int watchdog_init(void)
 		return 0;
 	}
 
-	LOG_DBG("🐶 watchdog started!");
+	LOG_INF("🐶 watchdog started!");
 
 	return 0;
 }
@@ -424,8 +424,8 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
 	int ret;
 	struct mqtt_publish_param param;
 
-	LOG_DBG("📤 %s", topic);
-	LOG_DBG("   └── payload: %s", payload);
+	LOG_INF("📤 %s", topic);
+	LOG_INF("   └── payload: %s", payload);
 
 	param.message.topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 	param.message.topic.topic.utf8 = (uint8_t *)topic;

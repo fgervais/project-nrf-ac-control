@@ -34,18 +34,18 @@ static K_EVENT_DEFINE(ac_control_events);
 static void mode_change_callback(const char *mode)
 {
 	if (strcmp(mode, "cool") == 0) {
-		LOG_DBG("❄️  mode %s", mode);
+		LOG_INF("❄️  mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_COOL);
 	}
 	else if (strcmp(mode, "off") == 0) {
-		LOG_DBG("🔌 mode %s", mode);
+		LOG_INF("🔌 mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_OFF);
 	}
 }
 
 static void temperature_setpoint_change_callback(double setpoint)
 {
-	LOG_DBG("🌡️  setpoint: %g°C", setpoint);
+	LOG_INF("🌡️  setpoint: %g°C", setpoint);
 	temperature_setpoint = setpoint;
 	k_event_post(&ac_control_events, CHANGE_SETPOINT_EVENT);
 }
@@ -174,10 +174,10 @@ void main(void)
 
 		if (events & CHANGE_STATE_EVENT) {
 			if (enabled) {
-				LOG_DBG("✅ enabled");
+				LOG_INF("✅ enabled");
 			}
 			else {
-				LOG_DBG("❌ disabled");
+				LOG_INF("❌ disabled");
 			}
 			ha_send_current_state(enabled);
 		}
