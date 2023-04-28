@@ -73,13 +73,13 @@ static struct config ac_config = {
 };
 
 static const struct mqtt_subscription subs[] = {
-	{ 
-		.topic = "home/room/kitchen/climate/ac/temperature/set",
-		.callback = callback_sub_set_temperature,
-	},
-	{ 
+	{
 		.topic = "home/room/kitchen/climate/ac/mode/set",
 		.callback = callback_sub_set_mode,
+	},
+	{
+		.topic = "home/room/kitchen/climate/ac/temperature/set",
+		.callback = callback_sub_set_temperature,
 	},
 };
 

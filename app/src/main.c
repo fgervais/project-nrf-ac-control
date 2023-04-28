@@ -26,6 +26,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 
 static double temperature_setpoint = -1;
+static bool initialized = false;
 static bool current_state_off = true;
 static bool enabled;
 
@@ -33,6 +34,10 @@ static K_EVENT_DEFINE(ac_control_events);
 
 static void mode_change_callback(const char *mode)
 {
+	if (!initialized) {
+		current_state_off = strcmp(mode, "off") == 0;
+		return;
+	}
 
 	if (strcmp(mode, "cool") == 0) {
 		LOG_INF("❄️  mode %s", mode);
@@ -51,6 +56,12 @@ static void temperature_setpoint_change_callback(double setpoint)
 {
 	LOG_INF("🌡️  setpoint: %g°C", setpoint);
 	temperature_setpoint = setpoint;
+
+	if (!initialized) {
+		initialized = true;
+		return;
+	}
+
 	k_event_post(&ac_control_events, CHANGE_SETPOINT_EVENT);
 }
 
@@ -85,6 +96,7 @@ void main(void)
 	double current_temp;
 	uint32_t events;
 	int ret;
+	int retry = 0;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 	const struct device *gpios[] = {
@@ -118,6 +130,16 @@ void main(void)
 	enabled = get_current_device_state(gpios[CONFIG_APP_STATE_INPUT_PORT],
 					   CONFIG_APP_STATE_INPUT_PIN);
 	k_event_post(&ac_control_events, CHANGE_STATE_EVENT);
+
+	while (!initialized) {
+		retry++;
+		if (retry % 10) {
+			LOG_INF("waiting initialization");
+		}
+		k_sleep(K_MSEC(100));
+	}
+
+	LOG_INF("🆗 initialized");
 
 	LOG_INF("┌──────────────────────────────────────────────────────────┐");
 	LOG_INF("│ Entering main loop                                       │");
