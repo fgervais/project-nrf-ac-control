@@ -198,9 +198,6 @@ struct pwm_nrfx_config {
 struct pwm_nrfx_data {
 	uint16_t seq_values[MAX_SEQ_SIZE];
 	nrf_pwm_sequence_t	 seq;
-	union drv_ir_frame	 frame;
-	union drv_ir_ext_frame	 ext_frame;
-	union drv_ir_ifeel_frame ifeel_frame;
 };
 
 
@@ -269,24 +266,22 @@ static uint16_t encode_frame(const struct device *dev,
 	uint16_t *seq;
 	int i;
 
-	struct pwm_nrfx_data *data = dev->data;
-
-	seq = data->seq_values;
+	seq = (uint16_t *)buf;
 	insert_start_symbol(&seq);
 
-	binary_to_symbol(data->frame.content, FRAME_BITS, &seq);
+	binary_to_symbol(frame->content, FRAME_BITS, &seq);
 	insert_trailing_sequence(&seq);
 
 	insert_ext_frame_space(&seq);
 
-	binary_to_symbol(data->ext_frame.content, EXT_FRAME_BITS, &seq);
+	binary_to_symbol(ext_frame->content, EXT_FRAME_BITS, &seq);
 
 	for (i = 0; i < NEC_GUARD_ZEROS; i++)
 	{
 		insert_zero_symbol(&seq);
 	}
 
-	return (uint16_t)(seq - data->seq_values);
+	return (uint16_t)(seq - buf);
 }
 
 static uint16_t encode_ifeel_frame(const struct device *dev,
@@ -296,12 +291,10 @@ static uint16_t encode_ifeel_frame(const struct device *dev,
 	uint16_t *seq;
 	int i;
 
-	struct pwm_nrfx_data *data = dev->data;
-
-	seq = data->seq_values;
+	seq = (uint16_t *)buf;
 	insert_ifeel_start_symbol(&seq);
 
-	binary_to_symbol(data->ifeel_frame.content, IFEEL_FRAME_BITS, &seq);
+	binary_to_symbol(ifeel_frame->content, IFEEL_FRAME_BITS, &seq);
 	insert_trailing_sequence(&seq);
 
 	for (i = 0; i < NEC_GUARD_ZEROS; i++)
@@ -309,7 +302,7 @@ static uint16_t encode_ifeel_frame(const struct device *dev,
 		insert_zero_symbol(&seq);
 	}
 
-	return (uint16_t)(seq - data->seq_values);
+	return (uint16_t)(seq - buf);
 }
 
 static int transmit_sequence(const struct device *dev)
@@ -322,23 +315,23 @@ static int transmit_sequence(const struct device *dev)
 	return 0;
 }
 
-static int fill_on(const struct device *dev, uint8_t temperature_setpoint)
+static int fill_on(union drv_ir_frame *frame,
+		   union drv_ir_ext_frame *ext_frame,
+		   uint8_t temperature_setpoint)
 {
-	struct pwm_nrfx_data *data = dev->data;
-
 	LOG_DBG("temperature setpoint: %d", temperature_setpoint);
 
-	data->frame.mode = DRV_IR_FRAME_MODE_COOLING;
-	data->frame.on = 1;
-	data->frame.oscillating = 1;
-	data->frame.temperature = temperature_setpoint - DRV_IR_TEMP_BASE_VALUE;
-	data->frame.light = 1;
+	frame->mode = DRV_IR_FRAME_MODE_COOLING;
+	frame->on = 1;
+	frame->oscillating = 1;
+	frame->temperature = temperature_setpoint - DRV_IR_TEMP_BASE_VALUE;
+	frame->light = 1;
 
-	data->ext_frame.swing = DRV_IR_EXT_FRAME_SWING_ALL;
-	data->ext_frame.temp = DRV_IR_EXT_FRAME_TEMP_SHOW_ALL;
-	data->ext_frame.i_feel = 0;
-	data->ext_frame.unknown = DRV_IR_EXT_FRAME_UNKNOWN_VAL;
-	data->ext_frame.temperature = (
+	ext_frame->swing = DRV_IR_EXT_FRAME_SWING_ALL;
+	ext_frame->temp = DRV_IR_EXT_FRAME_TEMP_SHOW_ALL;
+	ext_frame->i_feel = 0;
+	ext_frame->unknown = DRV_IR_EXT_FRAME_UNKNOWN_VAL;
+	ext_frame->temperature = (
 		(temperature_setpoint - DRV_IR_TEMP_BASE_VALUE)
 			+ DRV_IR_EXT_FRAME_COOLING_TEMP_OFFSET_C
 	) & 0x0F;
@@ -346,15 +339,17 @@ static int fill_on(const struct device *dev, uint8_t temperature_setpoint)
 	return 0;
 }
 
-static int send_frame(const struct device *dev)
+static int send_frame(union drv_ir_frame *frame,
+		      union drv_ir_ext_frame *ext_frame,
+		      const struct device *dev)
 {
 	struct pwm_nrfx_data *data = dev->data;
 
-	LOG_INF("Frame: %08x", data->frame.content);
-	LOG_INF("Extended frame: %08x", data->ext_frame.content);
+	LOG_INF("Frame: %08x", frame->content);
+	LOG_INF("Extended frame: %08x", ext_frame->content);
 
 	data->seq.length = encode_frame(
-		dev, &data->frame, &data->ext_frame, data->seq_values);
+		dev, frame, ext_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
@@ -368,34 +363,48 @@ static int send_frame(const struct device *dev)
 
 int drv_ir_send_on(const struct device *dev, uint8_t temperature_setpoint)
 {
-	fill_on(dev, temperature_setpoint);
+	union drv_ir_frame frame;
+	union drv_ir_ext_frame ext_frame;
 
-	send_frame(dev);
+	frame.content = 0;
+	ext_frame.content = 0;
+
+	fill_on(&frame, &ext_frame, temperature_setpoint);
+
+	send_frame(&frame, &ext_frame, dev);
 
 	return 0;
 }
 
 int drv_ir_send_off(const struct device *dev, uint8_t temperature_setpoint)
 {
-	struct pwm_nrfx_data *data = dev->data;
+	union drv_ir_frame frame;
+	union drv_ir_ext_frame ext_frame;
 
-	fill_on(dev, temperature_setpoint);
-	data->frame.on = 0;
-	data->ext_frame.temperature ^= BIT(3);
+	memset(&frame, 0, 4);
+	ext_frame.content = 0;
 
-	send_frame(dev);
+	fill_on(&frame, &ext_frame, temperature_setpoint);
+	frame.on = 0;
+	ext_frame.temperature ^= BIT(3);
+
+	send_frame(&frame, &ext_frame, dev);
 
 	return 0;
 }
 
 int drv_ir_send_change_config(const struct device *dev, uint8_t temperature_setpoint)
 {
-	struct pwm_nrfx_data *data = dev->data;
+	union drv_ir_frame frame;
+	union drv_ir_ext_frame ext_frame;
 
-	fill_on(dev, temperature_setpoint);
-	data->frame.set_config = 1;
+	frame.content = 0;
+	ext_frame.content = 0;
 
-	send_frame(dev);
+	fill_on(&frame, &ext_frame, temperature_setpoint);
+	frame.set_config = 1;
+
+	send_frame(&frame, &ext_frame, dev);
 
 	return 0;
 }
@@ -404,14 +413,18 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 {
 	struct pwm_nrfx_data *data = dev->data;
 
+	union drv_ir_ifeel_frame ifeel_frame;
+
+	ifeel_frame.content = 0;
+
 	LOG_INF("Current temperature: %d", current_temp);
 
-	data->ifeel_frame.temperature = current_temp;
+	ifeel_frame.temperature = current_temp;
 
-	LOG_INF("Ifeel frame: %08x", data->ifeel_frame.content);
+	LOG_INF("Ifeel frame: %08x", ifeel_frame.content);
 
 	data->seq.length = encode_ifeel_frame(
-		dev, &data->ifeel_frame, data->seq_values);
+		dev, &ifeel_frame, data->seq_values);
 
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
