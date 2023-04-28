@@ -163,50 +163,6 @@ const uint16_t NEC_ZERO[] =
 #define EXT_FRAME_COOLING_TEMP_OFFSET_C	0x5
 
 
-// union drv_ir_frame
-// {
-// 	uint32_t content;
-// 	struct {
-// 		uint32_t mode		: 3;
-// 		uint32_t on		: 1;
-// 		uint32_t fan		: 2;
-// 		uint32_t oscillating	: 1;
-// 		uint32_t sleep		: 1;
-// 		uint32_t temperature	: 4;
-// 		uint32_t timer		: 8;
-// 		uint32_t turbo		: 1;
-// 		uint32_t light		: 1;
-// 		uint32_t pine_tree	: 1;
-// 		uint32_t x_fan		: 1;
-// 		uint32_t scavenging	: 1;
-// 		uint32_t		: 2;
-// 		uint32_t set_config	: 1;
-// 	};
-// };
-
-// union drv_ir_ext_frame
-// {
-// 	uint32_t content;
-// 	struct {
-// 		uint32_t swing 		: 4;
-// 		uint32_t 		: 4;
-// 		uint32_t temp 		: 2;
-// 		uint32_t i_feel 	: 1;
-// 		uint32_t 		: 1;
-// 		uint32_t unknown 	: 4;
-// 		uint32_t 		: 12;
-// 		uint32_t temperature 	: 4;
-// 	};
-// };
-
-// union drv_ir_ifeel_frame
-// {
-// 	uint32_t content;
-// 	struct {
-// 		uint32_t temperature 	: 8;
-// 	};
-// };
-
 struct pwm_nrfx_config {
 	nrfx_pwm_t pwm;
 	nrfx_pwm_config_t initial_config;
