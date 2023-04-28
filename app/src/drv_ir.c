@@ -120,7 +120,7 @@ const uint16_t NEC_ZERO[] =
 #define FRAME_FAN_OFFSET		4
 #define FRAME_OSCILLATING_OFFSET	6
 #define FRAME_SLEEP_OFFSET		7
-#define FRAME_TEMPERATURE_OFFSET	8
+#define FRAME_SETPOINT_OFFSET	8
 #define FRAME_TIMER_OFFSET		12
 #define FRAME_TURBO_OFFSET		20
 #define FRAME_LIGHT_OFFSET		21
@@ -133,7 +133,7 @@ const uint16_t NEC_ZERO[] =
 #define EXT_FRAME_TEMP_SHOW_OFFSET	8
 #define EXT_FRAME_I_FEEL_OFFSET		10
 #define EXT_FRAME_UNKNOWN_OFFSET	12
-#define EXT_FRAME_TEMPERATURE_OFFSET	28
+#define EXT_FRAME_SETPOINT_OFFSET	28
 
 
 #define TEMP_BASE_VALUE			16
@@ -348,7 +348,7 @@ static int fill_on(uint32_t *frame,
 	*frame |= 1 << FRAME_ON_OFFSET;
 	*frame |= 1 << FRAME_OSCILLATING_OFFSET;
 	*frame |= (temperature_setpoint - TEMP_BASE_VALUE)
-		 << FRAME_TEMPERATURE_OFFSET;
+		 << FRAME_SETPOINT_OFFSET;
 	*frame |= 1 << FRAME_LIGHT_OFFSET;
 
 	*ext_frame |= EXT_FRAME_SWING_ALL << EXT_FRAME_SWING_OFFSET;
@@ -357,7 +357,7 @@ static int fill_on(uint32_t *frame,
 	*ext_frame |= EXT_FRAME_UNKNOWN_VAL << EXT_FRAME_UNKNOWN_OFFSET;
 	*ext_frame |= (((temperature_setpoint - TEMP_BASE_VALUE)
 			+ EXT_FRAME_COOLING_TEMP_OFFSET_C) & 0x0F
-		    ) << EXT_FRAME_TEMPERATURE_OFFSET;
+		    ) << EXT_FRAME_SETPOINT_OFFSET;
 
 	return 0;
 }
@@ -403,7 +403,7 @@ int drv_ir_send_off(const struct device *dev, uint8_t temperature_setpoint)
 
 	fill_on(&frame, &ext_frame, temperature_setpoint);
 	frame &= ~(1 << FRAME_ON_OFFSET);
-	ext_frame ^= (BIT(3) << EXT_FRAME_TEMPERATURE_OFFSET);
+	ext_frame ^= (BIT(3) << EXT_FRAME_SETPOINT_OFFSET);
 
 	send_frame(&frame, &ext_frame, dev);
 
