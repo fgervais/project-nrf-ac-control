@@ -84,6 +84,7 @@ void main(void)
 {
 	double current_temp;
 	uint32_t events;
+	int ret;
 
 	const struct device *pwm0 = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 	const struct device *gpios[] = {
@@ -152,31 +153,51 @@ void main(void)
 			LOG_INF("🌡️  current temp: %g°C", current_temp);
 
 			ha_send_current_temp(current_temp);
-			drv_ir_send_ifeel(pwm0, current_temp);
+			ret = drv_ir_send_ifeel(pwm0, current_temp);
+			if (ret < 0) {
+				LOG_ERR("could not send IR command");
+				continue;
+			}
 			continue;
 		}
 
 		if (current_state_off && (events & CHANGE_MODE_EVENT_COOL)) {
 			LOG_INF("📡 turn ON");
-			drv_ir_send_on(pwm0, temperature_setpoint);
+			ret = drv_ir_send_on(pwm0, temperature_setpoint);
+			if (ret < 0) {
+				LOG_ERR("could not send IR command");
+				continue;
+			}
 			k_sleep(K_SECONDS(1));
 
 			current_temp = get_current_temperature(tmp117);
 			LOG_INF("🌡️  current temp: %g°C", current_temp);
 
 			ha_send_current_temp(current_temp);
-			drv_ir_send_ifeel(pwm0, current_temp);
+			ret = drv_ir_send_ifeel(pwm0, current_temp);
+			if (ret < 0) {
+				LOG_ERR("could not send IR command");
+				continue;
+			}
 			current_state_off = false;
 		}
 		else if (!current_state_off && (events & CHANGE_MODE_EVENT_OFF)) {
 			LOG_INF("📡 turn OFF");
-			drv_ir_send_off(pwm0, temperature_setpoint);
+			ret = drv_ir_send_off(pwm0, temperature_setpoint);
+			if (ret < 0) {
+				LOG_ERR("could not send IR command");
+				continue;
+			}
 			current_state_off = true;
 		}
 
 		if (events & CHANGE_SETPOINT_EVENT) {
 			LOG_INF("📡 change setpoint: %g°C", temperature_setpoint);
-			drv_ir_send_change_config(pwm0, temperature_setpoint);
+			ret = drv_ir_send_change_config(pwm0, temperature_setpoint);
+			if (ret < 0) {
+				LOG_ERR("could not send IR command");
+				continue;
+			}
 		}
 
 		if (events & CHANGE_STATE_EVENT) {

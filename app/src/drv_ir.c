@@ -281,12 +281,28 @@ static uint16_t encode_ifeel_frame(const struct device *dev,
 	return (uint16_t)(seq - buf);
 }
 
+#define POLL_STOP_RETRY	10
 static int transmit_sequence(const struct device *dev)
 {
 	const struct pwm_nrfx_config *config = dev->config;
 	struct pwm_nrfx_data *data = dev->data;
+	int retry = POLL_STOP_RETRY;
 
-	nrfx_pwm_simple_playback(&config->pwm, &data->seq, 1, 0);
+	while (!nrfx_pwm_is_stopped(&config->pwm) && retry) {
+		LOG_DBG("stopped: %d", nrfx_pwm_is_stopped(&config->pwm));
+		retry--;
+		k_sleep(K_MSEC(100));
+	}
+
+	if (retry == 0) {
+		LOG_ERR("pwm did not stop");
+		return -EBUSY;
+	}
+
+	nrfx_pwm_simple_playback(&config->pwm,
+				 &data->seq,
+				 1,
+				 NRFX_PWM_FLAG_STOP);
 
 	return 0;
 }
@@ -323,6 +339,7 @@ static int send_frame(const int32_t *frame,
 		      const struct device *dev)
 {
 	struct pwm_nrfx_data *data = dev->data;
+	int ret;
 
 	LOG_INF("Frame: %08x", *frame);
 	LOG_INF("Extended frame: %08x", *ext_frame);
@@ -333,7 +350,10 @@ static int send_frame(const int32_t *frame,
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
 
-	transmit_sequence(dev);
+	ret = transmit_sequence(dev);
+	if (ret < 0) {
+		return ret;
+	}
 
 	LOG_INF("Transmission requested");
 
@@ -344,10 +364,14 @@ int drv_ir_send_on(const struct device *dev, uint8_t temperature_setpoint)
 {
 	uint32_t frame;
 	uint32_t ext_frame;
+	int ret;
 
 	fill_on(&frame, &ext_frame, temperature_setpoint);
 
-	send_frame(&frame, &ext_frame, dev);
+	ret = send_frame(&frame, &ext_frame, dev);
+	if (ret < 0) {
+		return ret;
+	}
 
 	return 0;
 }
@@ -356,12 +380,16 @@ int drv_ir_send_off(const struct device *dev, uint8_t temperature_setpoint)
 {
 	uint32_t frame;
 	uint32_t ext_frame;
+	int ret;
 
 	fill_on(&frame, &ext_frame, temperature_setpoint);
 	frame &= ~(1 << FRAME_ON_OFFSET);
 	ext_frame ^= (BIT(3) << EXT_FRAME_SETPOINT_OFFSET);
 
-	send_frame(&frame, &ext_frame, dev);
+	ret = send_frame(&frame, &ext_frame, dev);
+	if (ret < 0) {
+		return ret;
+	}
 
 	return 0;
 }
@@ -370,11 +398,15 @@ int drv_ir_send_change_config(const struct device *dev, uint8_t temperature_setp
 {
 	uint32_t frame;
 	uint32_t ext_frame;
+	int ret;
 
 	fill_on(&frame, &ext_frame, temperature_setpoint);
 	frame |= 1 << FRAME_SET_CONFIG_OFFSET;
 
-	send_frame(&frame, &ext_frame, dev);
+	ret = send_frame(&frame, &ext_frame, dev);
+	if (ret < 0) {
+		return ret;
+	}
 
 	return 0;
 }
@@ -383,6 +415,7 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 {
 	struct pwm_nrfx_data *data = dev->data;
 	uint8_t ifeel_frame = 0;
+	int ret;
 
 	LOG_INF("Current temperature: %d", current_temp);
 
@@ -396,7 +429,10 @@ int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 	LOG_INF("Frame length: 0x%x", data->seq.length);
 	LOG_INF("Transmission ready");
 
-	transmit_sequence(dev);
+	ret = transmit_sequence(dev);
+	if (ret < 0) {
+		return ret;
+	}
 
 	LOG_INF("Transmission requested");
 
