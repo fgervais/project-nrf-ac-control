@@ -309,7 +309,7 @@ static int fill_on(uint32_t *frame,
 
 	*ext_frame |= EXT_FRAME_SWING_ALL << EXT_FRAME_SWING_OFFSET;
 	*ext_frame |= EXT_FRAME_TEMP_SHOW_ALL << EXT_FRAME_TEMP_SHOW_OFFSET;
-	*ext_frame |= 0 << EXT_FRAME_I_FEEL_OFFSET;
+	*ext_frame |= 1 << EXT_FRAME_I_FEEL_OFFSET;
 	*ext_frame |= EXT_FRAME_UNKNOWN_VAL << EXT_FRAME_UNKNOWN_OFFSET;
 	*ext_frame |= (((temperature_setpoint - TEMP_BASE_VALUE)
 			+ EXT_FRAME_COOLING_TEMP_OFFSET_C) & 0x0F
