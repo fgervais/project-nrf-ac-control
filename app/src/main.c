@@ -33,6 +33,7 @@ static K_EVENT_DEFINE(ac_control_events);
 
 static void mode_change_callback(const char *mode)
 {
+
 	if (strcmp(mode, "cool") == 0) {
 		LOG_INF("❄️  mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_COOL);
@@ -40,6 +41,9 @@ static void mode_change_callback(const char *mode)
 	else if (strcmp(mode, "off") == 0) {
 		LOG_INF("🔌 mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_OFF);
+	}
+	else {
+		LOG_WRN("unknown mode: %s", mode);
 	}
 }
 
@@ -128,6 +132,7 @@ void main(void)
 			timeout = K_MINUTES(3);
 		}
 
+		LOG_INF("💤 wait");
 
 		events = k_event_wait(&ac_control_events,
 			     (CHANGE_STATE_EVENT |
@@ -137,6 +142,8 @@ void main(void)
 			     false, timeout);
 
 		k_event_set(&ac_control_events, 0);
+
+		LOG_INF("⏰ events: %08x", events);
 
 		if (events == 0) {
 			LOG_INF("📡 broadcast current temperature");
