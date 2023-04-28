@@ -39,6 +39,11 @@ static void mode_change_callback(const char *mode)
 		return;
 	}
 
+	if (!enabled) {
+		LOG_INF("currently disabled");
+		return;
+	}
+
 	if (strcmp(mode, "cool") == 0) {
 		LOG_INF("❄️  mode %s", mode);
 		k_event_post(&ac_control_events, CHANGE_MODE_EVENT_COOL);
@@ -59,6 +64,11 @@ static void temperature_setpoint_change_callback(double setpoint)
 
 	if (!initialized) {
 		initialized = true;
+		return;
+	}
+
+	if (!enabled) {
+		LOG_INF("currently disabled");
 		return;
 	}
 
