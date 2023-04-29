@@ -182,7 +182,7 @@ void main(void)
 			LOG_INF("📡 broadcast current temperature");
 
 			current_temp = get_current_temperature(tmp117);
-			LOG_INF("🌡️  current temp: %g°C", current_temp);
+			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
 
 			ha_send_current_temp(current_temp);
 			ret = drv_ir_send_ifeel(pwm0, current_temp);
@@ -203,7 +203,7 @@ void main(void)
 			k_sleep(K_SECONDS(1));
 
 			current_temp = get_current_temperature(tmp117);
-			LOG_INF("🌡️  current temp: %g°C", current_temp);
+			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
 
 			ha_send_current_temp(current_temp);
 			ret = drv_ir_send_ifeel(pwm0, current_temp);
