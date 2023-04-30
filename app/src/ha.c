@@ -31,7 +31,6 @@ struct config {
 	const char *modes[2];
 	int number_of_modes;
 	const char *mode_command_topic;
-	const char *mode_command_template;
 	const char *temperature_command_topic;
 	const char *temperature_current_topic;
 	const char *availability_topic;
@@ -55,7 +54,6 @@ static struct config ac_config = {
 	.modes = { "off", "cool" },
 	.number_of_modes = 2,
 	.mode_command_topic = "~/mode/set",
-	.mode_command_template = "{{ value if value=='off' else 'on' }}",
 	.temperature_command_topic = "~/temperature/set",
 	.temperature_current_topic = "~/temperature/current",
 	.availability_topic = "~/available",
@@ -100,7 +98,6 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct config, max_temp,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_ARRAY(struct config, modes, 2, number_of_modes,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_topic,		JSON_TOK_STRING),
-	JSON_OBJ_DESCR_PRIM(struct config, mode_command_template,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_current_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, availability_topic,		JSON_TOK_STRING),
