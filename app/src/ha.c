@@ -32,7 +32,7 @@ struct config {
 	int number_of_modes;
 	const char *mode_command_topic;
 	const char *temperature_command_topic;
-	const char *temperature_current_topic;
+	const char *current_temperature_topic;
 	const char *availability_topic;
 	int precision;
 	bool retain;
@@ -55,7 +55,7 @@ static struct config ac_config = {
 	.number_of_modes = 2,
 	.mode_command_topic = "~/mode/set",
 	.temperature_command_topic = "~/temperature/set",
-	.temperature_current_topic = "~/temperature/current",
+	.current_temperature_topic = "~/temperature/current",
 	.availability_topic = "~/available",
 	.precision = 1,
 	.retain = true,
@@ -99,7 +99,7 @@ static const struct json_obj_descr config_descr[] = {
 	JSON_OBJ_DESCR_ARRAY(struct config, modes, 2, number_of_modes,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, mode_command_topic,		JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, temperature_command_topic,	JSON_TOK_STRING),
-	JSON_OBJ_DESCR_PRIM(struct config, temperature_current_topic,	JSON_TOK_STRING),
+	JSON_OBJ_DESCR_PRIM(struct config, current_temperature_topic,	JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, availability_topic,		JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct config, precision,			JSON_TOK_NUMBER),
 	JSON_OBJ_DESCR_PRIM(struct config, retain,			JSON_TOK_TRUE),
@@ -192,13 +192,13 @@ static int ha_send_discovery(void)
 int ha_send_current_temp(double current_temp)
 {
 	char topic[strlen(ac_config.base_path)
-		   + strlen(ac_config.temperature_current_topic)];
+		   + strlen(ac_config.current_temperature_topic)];
 	char temp_string[16];
 
 	snprintf(topic, sizeof(topic),
 		 "%s%s",
 		 ac_config.base_path,
-		 ac_config.temperature_current_topic + 1);
+		 ac_config.current_temperature_topic + 1);
 
 	snprintf(temp_string, sizeof(temp_string),
 		 "%g",
