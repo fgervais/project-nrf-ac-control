@@ -23,6 +23,9 @@ static uint8_t tx_buffer[MQTT_BUFFER_SIZE];
 
 static struct mqtt_client client_ctx;
 
+static struct mqtt_topic last_will_topic;
+static struct mqtt_utf8 last_will_message;
+
 static struct sockaddr_storage broker;
 
 /* Socket Poll */
@@ -121,6 +124,9 @@ static void client_init(struct mqtt_client *client)
 	client->tx_buf_size = sizeof(tx_buffer);
 
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
+
+	client->will_topic = &last_will_topic;
+	client->will_message = &last_will_message;
 }
 
 static void mqtt_event_handler(struct mqtt_client *const client,
@@ -475,11 +481,20 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 	return 0;
 }
 
-int mqtt_init(const char *dev_id)
+int mqtt_init(const char *dev_id,
+	      const char *last_will_topic_string,
+	      const char *last_will_message_string)
 {
 	int ret;
 
 	device_id = dev_id;
+
+	last_will_topic.topic.utf8 = last_will_topic_string;
+	last_will_topic.topic.size = strlen(last_will_topic_string);
+	last_will_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
+
+	last_will_message.utf8 = last_will_message_string;
+	last_will_message.size = strlen(last_will_message_string);
 
 	ret = watchdog_init();
 	if (ret < 0) {

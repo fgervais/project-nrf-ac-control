@@ -83,6 +83,9 @@ static const struct mqtt_subscription subs[] = {
 	},
 };
 
+static const char *last_will_topic = "home/room/kitchen/climate/ac/available";
+static const char *last_will_message = "offline";
+
 static const struct json_obj_descr device_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct device, identifiers,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, name,	 JSON_TOK_STRING),
@@ -247,7 +250,7 @@ int ha_start(void (*mode_change_cb)(const char *mode),
 	LOG_INF("Device ID: %s", ac_config.dev.identifiers);
 	LOG_INF("Version: %s", ac_config.dev.sw_version);
 
-	ret = mqtt_init(device_id);
+	ret = mqtt_init(device_id, last_will_topic, last_will_message);
 	if (ret < 0) {
 		LOG_ERR("could initialize MQTT");
 		return ret;
