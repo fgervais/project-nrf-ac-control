@@ -162,8 +162,7 @@ static int ha_subscribe_to_topics(void)
 // Best practice for entities with a unique_id is to set <object_id> to
 // unique_id and omit the <node_id>.
 // https://www.home-assistant.io/integrations/mqtt/#discovery-topic
-// #define DISCOVERY_TOPIC_FORMAT_STRING	"homeassistant/climate/%s/config"
-#define DISCOVERY_TOPIC_FORMAT_STRING	"test/climate/%s/config"
+#define DISCOVERY_TOPIC_FORMAT_STRING	"homeassistant/climate/%s/config"
 static int ha_send_discovery(void)
 {
 	int ret;
