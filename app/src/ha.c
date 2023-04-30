@@ -18,7 +18,6 @@ struct device {
 	const char *identifiers;
 	const char *name;
 	const char *sw_version;
-	const char *hw_version;
 	const char *model;
 	const char *manufacturer;
 };
@@ -66,7 +65,6 @@ static struct config ac_config = {
 		.identifiers = device_id,
 		.name = "Split Air Conditioner",
 		.sw_version = APP_VERSION_FULL,
-		.hw_version = "1.0.0",
 		.model = "unknown",
 		.manufacturer = "GREE ELECTRIC APPLIANCES INC.",	
 	},
@@ -90,7 +88,6 @@ static const struct json_obj_descr device_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct device, identifiers,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, name,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, sw_version,	 JSON_TOK_STRING),
-	JSON_OBJ_DESCR_PRIM(struct device, hw_version,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, model,	 JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct device, manufacturer, JSON_TOK_STRING),
 };
