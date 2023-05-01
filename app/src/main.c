@@ -155,16 +155,7 @@ void main(void)
 	LOG_INF("│ Entering main loop                                       │");
 	LOG_INF("└──────────────────────────────────────────────────────────┘");
 
-	k_timeout_t timeout;
-
 	while (1) {
-		if (current_state_off) {
-			timeout = K_FOREVER;
-		}
-		else {
-			timeout = K_MINUTES(3);
-		}
-
 		LOG_INF("💤 wait");
 
 		events = k_event_wait(&ac_control_events,
@@ -172,7 +163,7 @@ void main(void)
 			      CHANGE_SETPOINT_EVENT |
 			      CHANGE_MODE_EVENT_COOL |
 			      CHANGE_MODE_EVENT_OFF),
-			     false, timeout);
+			     false, K_MINUTES(3));
 
 		k_event_set(&ac_control_events, 0);
 
@@ -185,10 +176,12 @@ void main(void)
 			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
 
 			ha_send_current_temp(current_temp);
-			ret = drv_ir_send_ifeel(pwm0, current_temp);
-			if (ret < 0) {
-				LOG_ERR("could not send IR command");
-				continue;
+
+			if (!current_state_off) {
+				ret = drv_ir_send_ifeel(pwm0, current_temp);
+				if (ret < 0) {
+					LOG_ERR("could not send IR command");
+				}
 			}
 			continue;
 		}
