@@ -191,7 +191,6 @@ void main(void)
 			ret = drv_ir_send_on(pwm0, temperature_setpoint);
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
-				continue;
 			}
 			k_sleep(K_SECONDS(1));
 
@@ -202,7 +201,6 @@ void main(void)
 			ret = drv_ir_send_ifeel(pwm0, current_temp);
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
-				continue;
 			}
 			current_state_off = false;
 		}
@@ -211,7 +209,6 @@ void main(void)
 			ret = drv_ir_send_off(pwm0, temperature_setpoint);
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
-				continue;
 			}
 			current_state_off = true;
 		}
@@ -221,7 +218,6 @@ void main(void)
 			ret = drv_ir_send_change_config(pwm0, temperature_setpoint);
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
-				continue;
 			}
 		}
 
