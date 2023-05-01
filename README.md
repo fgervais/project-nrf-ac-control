@@ -1,3 +1,7 @@
+# Air Conditioning Adapter for Home Assistant
+
+![overview](assets/img/overview.jpg)
+
 # Project Management
 
 ## Init
