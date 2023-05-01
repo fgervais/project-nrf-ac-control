@@ -216,7 +216,7 @@ void main(void)
 			current_state_off = true;
 		}
 
-		if (events & CHANGE_SETPOINT_EVENT) {
+		if ((events & CHANGE_SETPOINT_EVENT) && !current_state_off) {
 			LOG_INF("📡 change setpoint: %g°C", temperature_setpoint);
 			ret = drv_ir_send_change_config(pwm0, temperature_setpoint);
 			if (ret < 0) {
