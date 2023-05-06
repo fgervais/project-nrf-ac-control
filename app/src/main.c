@@ -101,6 +101,21 @@ bool get_current_device_state(const struct device *port, gpio_pin_t pin)
 	return (bool)gpio_pin_get_raw(port, pin);
 }
 
+void broadcast_current_temp(void)
+{
+	current_temp = get_current_temperature(tmp117);
+	LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
+
+	ha_send_current_temp(current_temp);
+
+	if (!current_state_off) {
+		ret = drv_ir_send_ifeel(pwm0, current_temp);
+		if (ret < 0) {
+			LOG_ERR("could not send IR command");
+		}
+	}
+}
+
 void main(void)
 {
 	double current_temp;
@@ -171,18 +186,7 @@ void main(void)
 
 		if (events == 0) {
 			LOG_INF("📡 broadcast current temperature");
-
-			current_temp = get_current_temperature(tmp117);
-			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
-
-			ha_send_current_temp(current_temp);
-
-			if (!current_state_off) {
-				ret = drv_ir_send_ifeel(pwm0, current_temp);
-				if (ret < 0) {
-					LOG_ERR("could not send IR command");
-				}
-			}
+			broadcast_current_temp();
 			continue;
 		}
 
@@ -192,17 +196,11 @@ void main(void)
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
 			}
-			k_sleep(K_SECONDS(3));
-
-			current_temp = get_current_temperature(tmp117);
-			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
-
-			ha_send_current_temp(current_temp);
-			ret = drv_ir_send_ifeel(pwm0, current_temp);
-			if (ret < 0) {
-				LOG_ERR("could not send IR command");
-			}
 			current_state_off = false;
+
+			k_sleep(K_SECONDS(2));
+			broadcast_current_temp();
+
 		}
 		else if (!current_state_off && (events & CHANGE_MODE_EVENT_OFF)) {
 			LOG_INF("📡 turn OFF");
@@ -219,6 +217,9 @@ void main(void)
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
 			}
+
+			k_sleep(K_SECONDS(2));
+			broadcast_current_temp();
 		}
 
 		if (events & CHANGE_STATE_EVENT) {
