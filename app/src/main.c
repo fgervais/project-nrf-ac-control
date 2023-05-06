@@ -103,6 +103,9 @@ bool get_current_device_state(const struct device *port, gpio_pin_t pin)
 
 void broadcast_current_temp(void)
 {
+	int ret;
+	double current_temp;
+
 	current_temp = get_current_temperature(tmp117);
 	LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
 
@@ -118,7 +121,6 @@ void broadcast_current_temp(void)
 
 void main(void)
 {
-	double current_temp;
 	uint32_t events;
 	int ret;
 	int retry = 0;
