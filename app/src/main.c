@@ -198,7 +198,7 @@ void main(void)
 			}
 			current_state_off = false;
 
-			k_sleep(K_SECONDS(2));
+			k_sleep(K_SECONDS(1));
 			broadcast_current_temp();
 
 		}
@@ -218,7 +218,7 @@ void main(void)
 				LOG_ERR("could not send IR command");
 			}
 
-			k_sleep(K_SECONDS(2));
+			k_sleep(K_SECONDS(1));
 			broadcast_current_temp();
 		}
 
