@@ -394,23 +394,6 @@ int drv_ir_send_off(const struct device *dev, uint8_t temperature_setpoint)
 	return 0;
 }
 
-int drv_ir_send_change_config(const struct device *dev, uint8_t temperature_setpoint)
-{
-	uint32_t frame;
-	uint32_t ext_frame;
-	int ret;
-
-	fill_on(&frame, &ext_frame, temperature_setpoint);
-	frame |= 1 << FRAME_SET_CONFIG_OFFSET;
-
-	ret = send_frame(&frame, &ext_frame, dev);
-	if (ret < 0) {
-		return ret;
-	}
-
-	return 0;
-}
-
 int drv_ir_send_ifeel(const struct device *dev, uint8_t current_temp)
 {
 	struct pwm_nrfx_data *data = dev->data;

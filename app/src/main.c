@@ -215,7 +215,7 @@ void main(void)
 
 		if ((events & CHANGE_SETPOINT_EVENT) && !current_state_off) {
 			LOG_INF("📡 change setpoint: %g°C", temperature_setpoint);
-			ret = drv_ir_send_change_config(pwm0, temperature_setpoint);
+			ret = drv_ir_send_on(pwm0, temperature_setpoint);
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
 			}
