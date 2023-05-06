@@ -101,7 +101,8 @@ bool get_current_device_state(const struct device *port, gpio_pin_t pin)
 	return (bool)gpio_pin_get_raw(port, pin);
 }
 
-void broadcast_current_temp(void)
+void broadcast_current_temp(const struct device *pwm0,
+			    const struct device *const tmp117)
 {
 	int ret;
 	double current_temp;
@@ -188,7 +189,7 @@ void main(void)
 
 		if (events == 0) {
 			LOG_INF("📡 broadcast current temperature");
-			broadcast_current_temp();
+			broadcast_current_temp(pwm0, tmp117);
 			continue;
 		}
 
@@ -201,7 +202,7 @@ void main(void)
 			current_state_off = false;
 
 			k_sleep(K_SECONDS(1));
-			broadcast_current_temp();
+			broadcast_current_temp(pwm0, tmp117);
 
 		}
 		else if (!current_state_off && (events & CHANGE_MODE_EVENT_OFF)) {
@@ -221,7 +222,7 @@ void main(void)
 			}
 
 			k_sleep(K_SECONDS(1));
-			broadcast_current_temp();
+			broadcast_current_temp(pwm0, tmp117);
 		}
 
 		if (events & CHANGE_STATE_EVENT) {
