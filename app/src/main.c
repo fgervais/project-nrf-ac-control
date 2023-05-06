@@ -192,7 +192,7 @@ void main(void)
 			if (ret < 0) {
 				LOG_ERR("could not send IR command");
 			}
-			k_sleep(K_SECONDS(1));
+			k_sleep(K_SECONDS(3));
 
 			current_temp = get_current_temperature(tmp117);
 			LOG_INF("   └── 🌡️  current temp: %g°C", current_temp);
