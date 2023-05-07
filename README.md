@@ -2,6 +2,10 @@
 
 ![overview](assets/img/overview.jpg)
 
+## Home Assistant control
+
+![control](assets/img/control.jpg)
+
 ## Functional Overview
 
 ```
