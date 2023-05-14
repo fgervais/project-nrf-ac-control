@@ -216,7 +216,7 @@ int ha_send_current_state(bool enabled)
 		 ac_config.base_path,
 		 ac_config.availability_topic + 1);
 
-	mqtt_publish_to_topic(topic, enabled ? "online" : "offline", false);
+	mqtt_publish_to_topic(topic, enabled ? "online" : "offline", true);
 
 	return 0;
 }

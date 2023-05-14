@@ -127,6 +127,7 @@ static void client_init(struct mqtt_client *client)
 
 	client->will_topic = &last_will_topic;
 	client->will_message = &last_will_message;
+	client->will_retain = 1;
 }
 
 static void mqtt_event_handler(struct mqtt_client *const client,
