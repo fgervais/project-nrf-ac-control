@@ -24,18 +24,23 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #define CHANGE_SETPOINT_EVENT		BIT(2)
 #define CHANGE_STATE_EVENT		BIT(8)
 
+#define INIT_RETRY_DELAY_MSEC		100
+#define INIT_RETRY_TIMEOUT_MSEC		(5 * 1000)
+
 
 static double temperature_setpoint = -1;
-static bool initialized = false;
 static bool current_state_off = true;
+static bool temperature_setpoint_initialized = false;
+static bool current_state_initialized = false;
 static bool enabled;
 
 static K_EVENT_DEFINE(ac_control_events);
 
 static void mode_change_callback(const char *mode)
 {
-	if (!initialized) {
-		current_state_off = strcmp(mode, "off") == 0;
+	if (!current_state_initialized) {
+		current_state_off = strcmp(mode, "off");
+		current_state_initialized = true;
 		return;
 	}
 
@@ -62,8 +67,8 @@ static void temperature_setpoint_change_callback(double setpoint)
 	LOG_INF("🌡️  setpoint: %g°C", setpoint);
 	temperature_setpoint = setpoint;
 
-	if (!initialized) {
-		initialized = true;
+	if (!temperature_setpoint_initialized) {
+		temperature_setpoint_initialized = true;
 		return;
 	}
 
@@ -157,14 +162,26 @@ void main(void)
 
 	enabled = get_current_device_state(gpios[CONFIG_APP_STATE_INPUT_PORT],
 					   CONFIG_APP_STATE_INPUT_PIN);
+	// Will trigger a state change event on first wait to send hw state to HA
 	k_event_post(&ac_control_events, CHANGE_STATE_EVENT);
 
-	while (!initialized) {
+	while (!temperature_setpoint_initialized || !current_state_initialized) {
 		retry++;
 		if (retry % 10) {
 			LOG_INF("waiting initialization");
 		}
-		k_sleep(K_MSEC(100));
+		if (retry >= (int)(INIT_RETRY_TIMEOUT_MSEC / INIT_RETRY_DELAY_MSEC)) {
+			if (!temperature_setpoint_initialized) {
+				temperature_setpoint = 22;
+				temperature_setpoint_initialized = true;
+			}
+			if (!current_state_initialized) {
+				current_state_off = true;
+				current_state_initialized = true;
+			}
+			break;
+		}
+		k_sleep(K_MSEC(INIT_RETRY_DELAY_MSEC));
 	}
 
 	LOG_INF("🆗 initialized");
