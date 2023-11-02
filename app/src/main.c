@@ -147,7 +147,10 @@ void main(void)
 		module_set_state(MODULE_STATE_READY);
 	}
 
-	__ASSERT(device_is_ready(tmp117), "TMP117 device not ready");
+	if (!device_is_ready(tmp117)) {
+		LOG_ERR("%s: device not ready", tmp117->name);
+		return;
+	}
 	LOG_INF("Device %s - %p is ready", tmp117->name, tmp117);
 
 	openthread_enable_ready_flag();
